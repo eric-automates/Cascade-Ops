@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CASCADE // OPS v2 — 3-Tier Telemetry & In-App Reader</title>
+<style>
+  :root {
+    --bg-base: #070a0e;
+    --bg-panel: #0d131a;
+    --bg-card: #121a24;
+    --bg-reader: #0a1017;
+    --border-dim: #1e2d3d;
+    --border-bright: #2b445c;
+    --text-main: #d6e4f0;
+    --text-dim: #70889e;
+    --accent-cyan: #00e5ff;
+    --st-green: #00e676;
+    --st-amber: #ffab00;
+    --st-orange: #ff6d00;
+    --st-red: #ff1744;
+    --st-purple: #d500f9;
+    --font-mono: 'Consolas', 'SFMono-Regular', 'Menlo', monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.05) 0%, transparent 60%),
+      linear-gradient(rgba(30, 45, 61, 0.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30, 45, 61, 0.18) 1px, transparent 1px);
+    background-size: 100% 100%, 24px 24px, 24px 24px;
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 12px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .hud-shell {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* TOP CONTROL BAR */
+  .top-bar {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-bright);
+    border-left: 4px solid var(--accent-cyan);
+    padding: 10px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    border-radius: 3px;
+  }
+
+  .brand-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+  }
+
+  .brand-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #fff;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .state-pill {
+    padding: 4px 10px;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+    text-transform: uppercase;
+  }
+
+  .controls-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hud-btn {
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-bright);
+    padding: 6px 11px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+  }
+
+  .hud-btn:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+  }
+
+  .hud-btn.primary {
+    background: rgba(0, 229, 255, 0.12);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+  }
+
+  .hud-btn.active-toggle {
+    background: rgba(0, 230, 118, 0.15);
+    border-color: var(--st-green);
+    color: var(--st-green);
+  }
+
+  .hud-btn.drill-active {
+    background: rgba(255, 109, 0, 0.2);
+    border-color: var(--st-orange);
+    color: var(--st-orange);
+  }
+
+  .timer-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-base);
+    border: 1px solid var(--border-dim);
+    padding: 3px 7px;
+    border-radius: 2px;
+  }
+
+  .timer-input {
+    width: 52px;
+    background: transparent;
+    border: 1px solid var(--border-bright);
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 2px 4px;
+    text-align: center;
+  }
+
+  /* 3-TIER CLICKABLE GRID */
+  .tiers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 10px;
+  }
+
+  .tier-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-dim);
+    border-top: 3px solid var(--st-green);
+    padding: 11px;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .tier-card:hover {
+    border-color: var(--accent-cyan);
+    transform: translateY(-1px);
+  }
+
+  .tier-card.active-tier {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.2);
+    background: #101923;
+  }
+
+  .tier-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .tier-id {
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    letter-spacing: 0.8px;
+  }
+
+  .led-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .led-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  .tier-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .tier-latest {
+    background: var(--bg-base);
+    border: 1px solid var(--border-dim);
+    padding: 7px 9px;
+    border-radius: 2px;
+    font-size: 11px;
+    min-height: 52px;
+  }
+
+  .tier-click-prompt {
+    font-size: 10px;
+    color: var(--accent-cyan);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 2px;
+  }
+
+  /* 60-DAY TIMELINE GRAPH PANEL */
+  .graph-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-bright);
+    padding: 12px;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .panel-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent-cyan);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .legend-swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 1px;
+  }
+
+  .graph-scroll-wrap {
+    overflow-x: auto;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-dim);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-bright) var(--bg-base);
+  }
+
+  .graph-track {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 155px;
+    min-width: 1140px;
+    padding: 18px 6px 24px 6px;
+    position: relative;
+    background: 
+      linear-gradient(to bottom, rgba(255,23,68,0.06) 0%, rgba(255,23,68,0.06) 25%,
+      rgba(255,109,0,0.05) 25%, rgba(255,109,0,0.05) 50%,
+      rgba(255,171,0,0.04) 50%, rgba(255,171,0,0.04) 75%,
+      rgba(0,230,118,0.03) 75%, rgba(0,230,118,0.03) 100%);
+  }
+
+  .graph-tier-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed rgba(112, 136, 158, 0.22);
+    font-size: 9px;
+    color: rgba(112, 136, 158, 0.55);
+    padding-left: 4px;
+    pointer-events: none;
+  }
+
+  .day-col {
+    flex: 1;
+    min-width: 15px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    padding: 0 1px;
+    border-radius: 2px;
+    transition: background 0.12s;
+  }
+
+  .day-col:hover,
+  .day-col.selected {
+    background: rgba(0, 229, 255, 0.14);
+    outline: 1px solid var(--accent-cyan);
+  }
+
+  .day-bar {
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.25s ease, background-color 0.25s ease;
+    position: relative;
+    min-height: 6px;
+  }
+
+  .day-hit-count {
+    font-size: 9px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: var(--text-main);
+  }
+
+  .day-date-lbl {
+    position: absolute;
+    bottom: -20px;
+    font-size: 9px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    transform: rotate(-30deg);
+    transform-origin: top center;
+  }
+
+  /* SPLIT WORKSPACE: FEED LIST + IN-APP ARTICLE READER */
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .workspace-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .inspector-panel,
+  .reader-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-bright);
+    padding: 12px;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .reader-panel {
+    position: sticky;
+    top: 12px;
+    background: var(--bg-reader);
+    border-left: 3px solid var(--accent-cyan);
+  }
+
+  .hit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 540px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .hit-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-left: 3px solid var(--st-amber);
+    padding: 9px 11px;
+    border-radius: 2px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+  }
+
+  .hit-item:hover,
+  .hit-item.active-article {
+    border-color: var(--accent-cyan);
+    background: #172230;
+  }
+
+  .hit-item.routine {
+    border-left-color: var(--border-bright);
+    opacity: 0.84;
+  }
+
+  .hit-thumb {
+    width: 64px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 2px;
+    border: 1px solid var(--border-bright);
+    flex-shrink: 0;
+    background: #05080b;
+  }
+
+  .hit-body-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .hit-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .hit-headline {
+    color: #fff;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .token-match {
+    display: inline-block;
+    background: rgba(255, 23, 68, 0.16);
+    border: 1px solid rgba(255, 23, 68, 0.45);
+    color: #ff8a9f;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 2px;
+  }
+
+  /* IN-APP READER CONTENT */
+  .reader-meta-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border-dim);
+    padding-bottom: 8px;
+  }
+
+  .reader-headline {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.35;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .reader-hero-img {
+    width: 100%;
+    max-height: 260px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid var(--border-bright);
+    background: #05080b;
+    margin: 4px 0;
+  }
+
+  .reader-content {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-main);
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 6px;
+    white-space: pre-line;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .reader-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-top: 1px solid var(--border-dim);
+    padding-top: 8px;
+  }
+
+  .ext-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 2px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .ext-link-btn:hover {
+    background: rgba(0, 229, 255, 0.22);
+  }
+
+  /* TACTICAL PIN CALLOUT OVERLAY (PRESS & HOLD) */
+  #tactical-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+  }
+
+  #tactical-svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+  }
+
+  #tactical-box {
+    position: absolute;
+    width: 260px;
+    background: rgba(9, 14, 20, 0.96);
+    border: 1px solid var(--accent-cyan);
+    border-left: 3px solid var(--accent-cyan);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 229, 255, 0.25);
+    padding: 8px 10px;
+    border-radius: 2px;
+    font-size: 11px;
+    color: var(--text-main);
+  }
+
+  .tac-hdr {
+    color: var(--accent-cyan);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    border-bottom: 1px solid var(--border-dim);
+    padding-bottom: 3px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .tac-sub {
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .tac-body {
+    color: var(--text-dim);
+    font-size: 10.5px;
+    line-height: 1.35;
+    white-space: pre-line;
+  }
+
+  .status-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 2px;
+  }
+
+  .c-green { color: var(--st-green); }
+  .c-amber { color: var(--st-amber); }
+  .c-orange { color: var(--st-orange); }
+  .c-red { color: var(--st-red); }
+  .c-purple { color: var(--st-purple); }
+</style>
+</head>
+<body>
+
+<div class="hud-shell">
+  <!-- TOP HUD BAR -->
+  <header class="top-bar">
+    <div class="brand-block" id="cascade-banner"
+         data-pin-title="CASCADE // OPS v2 CORE"
+         data-pin-sub="Strict Word-Boundary State Machine"
+         data-pin-body="Fixed Oct 30 substring collisions. Click any L1/L2/L3 level card below to view its 48-hour feed, or click any headline to read inside the app.">
+      <div>
+        <div class="brand-title">CASCADE // OPS</div>
+        <div class="brand-sub" id="sync-status-lbl">OFFLINE CACHE READY • CLICK POLL TO SYNC</div>
+      </div>
+      <div id="global-state-pill" class="state-pill c-green"
+           data-pin-title="SYSTEM STATE GATE"
+           data-pin-sub="Current Cascade Level"
+           data-pin-body="Evaluates active triggers across rolling asymmetric windows (48h/24h/12h). RED requires L3 (Local Grid) + (L1 or L2).">
+        NOMINAL
+      </div>
+    </div>
+
+    <div class="controls-group">
+      <button id="btn-poll" class="hud-btn primary"
+              data-pin-title="MANUAL SYNC TRIGGER"
+              data-pin-sub="On-Demand RSS Poll"
+              data-pin-body="Fetches USNI, CISA, and Utility Dive RSS feeds, extracts safe article text & images, and updates the 60-day local database.">
+        ⟳ POLL / SYNC NOW
+      </button>
+
+      <div class="timer-wrap"
+           data-pin-title="CUSTOM POLL TIMER"
+           data-pin-sub="User-Defined Auto-Sync Interval"
+           data-pin-body="Enter interval in seconds (min 10s) and click AUTO to toggle background polling. Default is OFF (manual click only).">
+        <span style="font-size:11px;color:var(--text-dim);">SEC:</span>
+        <input type="number" id="poll-sec-input" class="timer-input" value="300" min="10" max="86400">
+        <button id="btn-auto-toggle" class="hud-btn">AUTO: OFF</button>
+      </div>
+
+      <button id="btn-48h-all" class="hud-btn"
+              data-pin-title="48-HOUR GLOBAL STREAM"
+              data-pin-sub="View All Recent Feeds (48h)"
+              data-pin-body="Loads all incoming feeds across L1, L2, and L3 from the last 48 hours into the In-App Feed Inspector below.">
+        ⏱ LAST 48H (ALL)
+      </button>
+
+      <button id="btn-drill" class="hud-btn"
+              data-pin-title="60-DAY DRILL INJECTOR"
+              data-pin-sub="Synthetic Crisis Backfill"
+              data-pin-body="Injects realistic historical L1/L2/L3 escalation spikes across the 60-day timeline to test graph scaling and the in-app reader.">
+        ⚡ SIMULATE DRILL
+      </button>
+
+      <button id="btn-purge-recalc" class="hud-btn"
+              data-pin-title="RE-EVALUATE ARCHIVE MATH"
+              data-pin-sub="Purge Old False-Positive Blips"
+              data-pin-body="Re-runs the tightened v2 regex rules across all cached articles in localStorage to clear legacy Oct 30 false positives.">
+        ✓ RE-VERIFY MATH
+      </button>
+    </div>
+  </header>
+
+  <div class="status-hint">
+    <span>💡 <strong>CLICK ANY LEVEL CARD (L1/L2/L3)</strong> to load its 48-hour feed. <strong>CLICK ANY ARTICLE</strong> to read inside the app. <strong>HOLD/RIGHT-CLICK</strong> for Tactical Pin.</span>
+    <span id="canary-readout"
+          data-pin-title="DEAD MAN'S SWITCH CANARY"
+          data-pin-sub="BGP / Gateway Reachability Sensor"
+          data-pin-body="Compares local NIC gateway status against external feed HTTP handshakes. Triggers PURPLE [COMMS FAULT] if all 3 feeds drop while NIC is up.">
+      CANARY: NIC ONLINE • 3/3 FEEDS READY
+    </span>
+  </div>
+
+  <!-- 3 TIER CLICKABLE STATUS CARDS -->
+  <section class="tiers-grid" id="tiers-container"></section>
+
+  <!-- 60-DAY SCROLLABLE GRAPH -->
+  <section class="graph-panel" id="graph-section">
+    <div class="panel-header">
+      <div class="panel-title"
+           data-pin-title="60-DAY CASCADE CHRONOLOGY"
+           data-pin-sub="Left-to-Right Escalation Timeline"
+           data-pin-body="Scroll horizontally across the last 60 days. Bar height and color reflect daily compound triggers. Click any day bar to inspect its articles below.">
+        <span>▣ 60-DAY CASCADE TELEMETRY (LEFT → RIGHT)</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-item"><i class="legend-swatch" style="background:var(--st-green)"></i>LVL 0: NOMINAL</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:var(--st-amber)"></i>LVL 1: ELEVATED (1 TIER)</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:var(--st-orange)"></i>LVL 2: PRE-CASCADE (L1+L2)</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:var(--st-red)"></i>LVL 3: CASCADE WARNING (L3+)</span>
+      </div>
+    </div>
+
+    <div class="graph-scroll-wrap" id="graph-scroll">
+      <div class="graph-track" id="graph-track"></div>
+    </div>
+  </section>
+
+  <!-- SPLIT WORKSPACE: FEED STREAM (LEFT) + IN-APP ARTICLE READER (RIGHT) -->
+  <section class="workspace-grid" id="workspace-section">
+    <!-- LEFT: FEED STREAM (48H TIER VIEW OR SELECTED DAY VIEW) -->
+    <div class="inspector-panel">
+      <div class="panel-header">
+        <div class="panel-title" id="inspector-title"
+             data-pin-title="FEED & INCIDENT STREAM"
+             data-pin-sub="48-Hour Tier Feed or Selected Day"
+             data-pin-body="Click any level card above for its 48-hour feed, or click a bar on the 60-day graph to inspect a specific date. Click any item to read in-app on the right.">
+          <span>◈ STREAM INSPECTOR</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button id="btn-toggle-routine" class="hud-btn active-toggle"
+                  data-pin-title="ROUTINE TRAFFIC FILTER"
+                  data-pin-sub="Show/Hide Non-Crisis Articles"
+                  data-pin-body="Toggles visibility of routine/filtered articles so you can browse normal 48-hour news alongside crisis hits.">
+            ROUTINE FEEDS: ON
+          </button>
+          <button id="btn-toggle-images" class="hud-btn active-toggle"
+                  data-pin-title="SAFE IMAGE GUARD"
+                  data-pin-sub="Toggle Sanitized Article Images"
+                  data-pin-body="Loads article images over HTTPS with no-referrer privacy protection and script stripping. Turn OFF for pure text mode.">
+            SAFE IMAGES: ON
+          </button>
+        </div>
+      </div>
+      <div id="inspector-content" class="hit-list"></div>
+    </div>
+
+    <!-- RIGHT: IN-APP ARTICLE READER -->
+    <div class="reader-panel" id="reader-panel"
+         data-pin-title="IN-APP TACTICAL READER"
+         data-pin-sub="Zero-Redirect Local Content View"
+         data-pin-body="Displays sanitized article text, rule telemetry, and safe images directly inside the HUD without leaving the page.">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>▤ IN-APP ARTICLE INTEL READER</span>
+        </div>
+        <span id="reader-tier-badge" style="font-size:11px;color:var(--accent-cyan);font-weight:700;">READY</span>
+      </div>
+      <div id="reader-body-container">
+        <div style="color:var(--text-dim);padding:24px 8px;text-align:center;">
+          Click any feed item on the left (or click any L1 / L2 / L3 card above to load the last 48 hours) to read the full article summary and view images right here inside the HUD.
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- TACTICAL PIN CALLOUT OVERLAY -->
+<div id="tactical-overlay">
+  <svg id="tactical-svg"></svg>
+  <div id="tactical-box">
+    <div class="tac-hdr"><span id="tac-title">TELEMETRY</span><span>[PIN // LOCK]</span></div>
+    <div class="tac-sub" id="tac-sub"></div>
+    <div class="tac-body" id="tac-body"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'CASCADE_OPS_ARCHIVE_V2';
+  const LEGACY_KEY = 'CASCADE_OPS_ARCHIVE_V1';
+
+  // Strict v2 Configuration (Purged loose words & added Oct 30 KEV / Regulatory exclusions)
+  const TIER_CONFIG = {
+    L1: {
+      id: 'L1',
+      code: 'L1: GEO-LOG',
+      name: 'USNI Military & Sealift',
+      windowHours: 48,
+      url: 'https://news.usni.org/feed',
+      ignore: [
+        'Fleet and Marine Tracker', 'Book Review', 'Christening',
+        'Commissioning', 'History', 'Museum', 'Memorial', 'Standard For Next Couple Years'
+      ],
+      targets: [
+        'Ready Reserve', 'MARAD', 'NORTHCOM', 'NORAD',
+        'Fifth Fleet', 'Seventh Fleet', 'Sealift', 'CONUS'
+      ],
+      crisis: [
+        'activation', 'mobilization', 'DEFCON', 'emergency order',
+        'surge deployment', 'intercept', 'kinetic', 'hostilities'
+      ]
+    },
+    L2: {
+      id: 'L2',
+      code: 'L2: NAT-ICS',
+      name: 'CISA OT / Bulk Grid Cyber',
+      windowHours: 24,
+      url: 'https://www.cisa.gov/cybersecurity-advisories/all.xml',
+      ignore: [
+        'ICSA-', 'ICSMA-', 'recommends users upgrade', 'SQL', 'XSS',
+        'Known Exploited Vulnerabilities', 'KEV Catalog', 'CVE-',
+        'Resilience Month', 'ScubaGear', 'php2shell'
+      ],
+      targets: [
+        'SCADA', 'PLC', 'bulk-power', 'substation',
+        'energy sector', 'transmission', 'pipeline', 'water system'
+      ],
+      crisis: [
+        'Emergency Directive', '202(c)', 'active exploitation',
+        'actively exploited', 'destructive', 'wiper',
+        'operational outage', 'nation-state'
+      ]
+    },
+    L3: {
+      id: 'L3',
+      code: 'L3: REG-GRID',
+      name: 'Midwest Bulk Grid (MISO/PJM)',
+      windowHours: 12,
+      url: 'https://www.utilitydive.com/feeds/news/',
+      ignore: [
+        'auction', 'FERC', 'tariff', 'permitting', 'earnings',
+        'merger', 'ratepayer', '2027', '2028', '2029', '2038', '2041',
+        'interconnection queue', 'supply crunch', 'energy storage',
+        'wildfire', 'surplus interconnection', 'nuclear uprate'
+      ],
+      targets: [
+        'MISO', 'PJM', 'Midwest', 'Indiana', 'AES', 'Eastern Interconnection'
+      ],
+      crisis: [
+        'EEA', 'Energy Emergency', 'Maximum Generation Event',
+        'load shed', 'rolling blackout', 'Conservative Operations',
+        'frequency instability', 'grid emergency'
+      ]
+    }
+  };
+
+  let state = {
+    items: [],
+    viewMode: '48H_ALL', // '48H_TIER', '48H_ALL', or 'DAY'
+    activeTierFilter: 'L1',
+    selectedDate: formatDateKey(new Date()),
+    selectedArticleId: null,
+    showRoutine: true,
+    safeImages: true,
+    drillMode: false,
+    commsFault: false,
+    lastSync: null,
+    autoTimerId: null,
+    countdownId: null,
+    remainingSec: 0
+  };
+
+  function formatDateKey(d) {
+    const dt = new Date(d);
+    if (isNaN(dt)) return new Date().toISOString().slice(0, 10);
+    const yr = dt.getFullYear();
+    const mo = String(dt.getMonth() + 1).padStart(2, '0');
+    const da = String(dt.getDate()).padStart(2, '0');
+    return `${yr}-${mo}-${da}`;
+  }
+
+  // Strict word-boundary regex matcher so "Carrier Strike Group" never self-matches "strike"
+  // and short tokens like "EEA" or "AES" never match inside ordinary words.
+  function hasTokenMatch(text, token) {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(^|[^a-zA-Z0-9_])${escaped}(?=$|[^a-zA-Z0-9_])`, 'i');
+    return re.test(text);
+  }
+
+  // Extract safe HTTPS image URL from RSS item payload or HTML snippet
+  function extractSafeImageUrl(rawHtml, itemObj) {
+    const candidates = [];
+    if (itemObj) {
+      if (typeof itemObj.thumbnail === 'string') candidates.push(itemObj.thumbnail);
+      if (itemObj.enclosure && typeof itemObj.enclosure.link === 'string') candidates.push(itemObj.enclosure.link);
+      if (itemObj.enclosure && typeof itemObj.enclosure.url === 'string') candidates.push(itemObj.enclosure.url);
+    }
+    if (rawHtml) {
+      const imgMatch = rawHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (imgMatch && imgMatch[1]) candidates.push(imgMatch[1]);
+    }
+    for (const url of candidates) {
+      const clean = url.trim();
+      if (clean.startsWith('https://') && !clean.includes('javascript:') && !clean.includes('1x1') && !clean.includes('pixel')) {
+        return clean;
+      }
+    }
+    return null;
+  }
+
+  // Sanitize HTML description into clean, readable multi-paragraph plain text
+  function sanitizeArticleBody(rawHtml) {
+    if (!rawHtml) return 'No extended body text provided by the RSS feed.';
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHtml, 'text/html');
+    doc.querySelectorAll('script, style, iframe, object, embed, form, input').forEach(el => el.remove());
+    doc.querySelectorAll('p, br, li, div, h1, h2, h3, h4').forEach(el => {
+      el.insertAdjacentText('afterend', '\n\n');
+    });
+    const cleanText = (doc.body.textContent || '')
+      .replace(/\r/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return cleanText || 'No extended body text provided by the RSS feed.';
+  }
+
+  // Evaluate article using strict word boundaries + non-overlapping Target & Crisis checks
+  function evaluateArticle(tierKey, title, rawHtml, pubDate, link, imageUrl = null, isDrill = false) {
+    const cfg = TIER_CONFIG[tierKey];
+    const bodyText = sanitizeArticleBody(rawHtml);
+    const fullText = `${title} ${bodyText}`;
+    const dt = new Date(pubDate);
+    const timestamp = isNaN(dt.getTime()) ? Date.now() : dt.getTime();
+    const dateKey = formatDateKey(timestamp);
+
+    const ignoredHit = cfg.ignore.find(w => hasTokenMatch(fullText, w));
+    if (ignoredHit) {
+      return {
+        id: `${tierKey}-${timestamp}-${title.slice(0, 28)}`,
+        tier: tierKey,
+        title,
+        bodyText,
+        imageUrl,
+        link,
+        timestamp,
+        dateKey,
+        triggered: false,
+        reason: `EXCLUDED ("${ignoredHit}")`,
+        matchedTarget: null,
+        matchedCrisis: null,
+        isDrill
+      };
+    }
+
+    const matchedTarget = cfg.targets.find(t => hasTokenMatch(fullText, t));
+    let matchedCrisis = null;
+
+    if (matchedTarget) {
+      // Remove matched target phrase before checking crisis token to prevent self-collision
+      const scrubbed = fullText.replace(new RegExp(matchedTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), ' ');
+      matchedCrisis = cfg.crisis.find(c => hasTokenMatch(scrubbed, c));
+    }
+
+    const triggered = Boolean(matchedTarget && matchedCrisis);
+
+    return {
+      id: `${tierKey}-${timestamp}-${title.slice(0, 28)}`,
+      tier: tierKey,
+      title,
+      bodyText,
+      imageUrl,
+      link,
+      timestamp,
+      dateKey,
+      triggered,
+      reason: triggered
+        ? `MATCH: [${matchedTarget}] + [${matchedCrisis}]`
+        : matchedTarget
+          ? `Target [${matchedTarget}] only (No Crisis token)`
+          : 'Routine feed item (Nominal)',
+      matchedTarget: matchedTarget || null,
+      matchedCrisis: matchedCrisis || null,
+      isDrill
+    };
+  }
+
+  function revalidateAllCachedItems() {
+    state.items = state.items.map(it =>
+      evaluateArticle(
+        it.tier,
+        it.title,
+        it.bodyText || it.summary || '',
+        new Date(it.timestamp).toISOString(),
+        it.link,
+        it.imageUrl || null,
+        Boolean(it.isDrill)
+      )
+    );
+    saveArchive();
+  }
+
+  function loadArchive() {
+    try {
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        // Migrate v1 cache if present and immediately fix math
+        raw = localStorage.getItem(LEGACY_KEY);
+      }
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.items)) state.items = parsed.items;
+        if (parsed.lastSync) state.lastSync = parsed.lastSync;
+        revalidateAllCachedItems();
+      }
+    } catch (e) {
+      console.warn('Archive load skipped:', e);
+    }
+    pruneOldItems();
+  }
+
+  function saveArchive() {
+    try {
+      pruneOldItems();
+      const nonDrill = state.items.filter(i => !i.isDrill);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        items: nonDrill,
+        lastSync: state.lastSync
+      }));
+    } catch (e) {
+      console.warn('Archive save skipped:', e);
+    }
+  }
+
+  function pruneOldItems() {
+    const cutoff = Date.now() - (62 * 86400 * 1000);
+    state.items = state.items.filter(item => item.timestamp >= cutoff);
+  }
+
+  // Multi-Proxy CORS RSS Fetcher with Safe Image & Content Extraction
+  async function fetchFeedItems(tierKey) {
+    const url = TIER_CONFIG[tierKey].url;
+
+    // Strategy 1: rss2json API
+    try {
+      const r1 = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`);
+      if (r1.ok) {
+        const data = await r1.json();
+        if (data.status === 'ok' && Array.isArray(data.items)) {
+          return data.items.map(it => {
+            const rawHtml = it.content || it.description || '';
+            const img = extractSafeImageUrl(rawHtml, it);
+            return evaluateArticle(
+              tierKey,
+              it.title || 'Untitled',
+              rawHtml,
+              it.pubDate || new Date().toISOString(),
+              it.link || url,
+              img
+            );
+          });
+        }
+      }
+    } catch (_) {}
+
+    // Strategy 2 & 3: Raw XML via AllOrigins or CorsProxy
+    const proxies = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      `https://corsproxy.io/?${encodeURIComponent(url)}`
+    ];
+
+    for (const pUrl of proxies) {
+      try {
+        const res = await fetch(pUrl);
+        if (!res.ok) continue;
+        const xmlText = await res.text();
+        const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+        const nodes = Array.from(doc.querySelectorAll('item, entry'));
+        if (nodes.length > 0) {
+          return nodes.map(n => {
+            const title = n.querySelector('title')?.textContent?.trim() || 'Untitled';
+            const encoded = n.getElementsByTagNameNS('*', 'encoded')[0]?.textContent;
+            const rawHtml = encoded || n.querySelector('content, description, summary')?.textContent || '';
+            const pub = n.querySelector('pubDate, published, updated')?.textContent?.trim() || new Date().toISOString();
+            const linkNode = n.querySelector('link');
+            const link = linkNode?.getAttribute('href') || linkNode?.textContent?.trim() || url;
+
+            // Check media:content, media:thumbnail, or enclosure for image
+            let mediaUrl = null;
+            const enclosure = n.querySelector('enclosure');
+            if (enclosure && (enclosure.getAttribute('type') || '').startsWith('image')) {
+              mediaUrl = enclosure.getAttribute('url');
+            }
+            if (!mediaUrl) {
+              const mediaNodes = [
+                ...Array.from(n.getElementsByTagNameNS('*', 'content')),
+                ...Array.from(n.getElementsByTagNameNS('*', 'thumbnail'))
+              ];
+              for (const m of mediaNodes) {
+                const u = m.getAttribute('url');
+                if (u && u.startsWith('https://')) {
+                  mediaUrl = u;
+                  break;
+                }
+              }
+            }
+            const finalImg = extractSafeImageUrl(rawHtml, { thumbnail: mediaUrl });
+            return evaluateArticle(tierKey, title, rawHtml, pub, link, finalImg);
+          });
+        }
+      } catch (_) {}
+    }
+
+    throw new Error(`Feed unreachable: ${tierKey}`);
+  }
+
+  async function pollAllFeeds() {
+    const btn = document.getElementById('btn-poll');
+    const statusLbl = document.getElementById('sync-status-lbl');
+    btn.textContent = '⟳ SYNCING FEEDS...';
+    statusLbl.textContent = 'POLLING L1 / L2 / L3 TELEMETRY...';
+
+    const results = await Promise.allSettled([
+      fetchFeedItems('L1'),
+      fetchFeedItems('L2'),
+      fetchFeedItems('L3')
+    ]);
+
+    let failCount = 0;
+    const itemMap = new Map();
+    state.items.forEach(i => itemMap.set(i.id, i));
+
+    results.forEach(res => {
+      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+        res.value.forEach(item => {
+          itemMap.set(item.id, item);
+        });
+      } else {
+        failCount++;
+      }
+    });
+
+    state.items = Array.from(itemMap.values());
+    state.commsFault = (failCount === 3 && navigator.onLine);
+    state.lastSync = new Date().toLocaleTimeString();
+    saveArchive();
+
+    btn.textContent = '⟳ POLL / SYNC NOW';
+    statusLbl.textContent = state.commsFault
+      ? `COMMS FAULT DETECTED AT ${state.lastSync}`
+      : `LAST SYNC: ${state.lastSync} (${3 - failCount}/3 FEEDS OK)`;
+
+    document.getElementById('canary-readout').textContent = state.commsFault
+      ? 'CANARY: ⚠️ NIC UP / 0 OF 3 FEEDS RESPONDING (POTENTIAL BGP DROP)'
+      : `CANARY: NIC ONLINE • ${3 - failCount}/3 FEEDS VERIFIED`;
+
+    renderAll();
+  }
+
+  function getLast60DaysData() {
+    const days = [];
+    const now = new Date();
+    for (let i = 59; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const key = formatDateKey(d);
+      const dayItems = state.items.filter(it => it.dateKey === key);
+      const hits = dayItems.filter(it => it.triggered);
+      const routine = dayItems.filter(it => !it.triggered);
+      const tiers = new Set(hits.map(h => h.tier));
+
+      let level = 0;
+      let label = 'NOMINAL';
+      let color = 'var(--st-green)';
+
+      if (tiers.has('L3') && (tiers.has('L1') || tiers.has('L2'))) {
+        level = 3;
+        label = 'CASCADE WARNING';
+        color = 'var(--st-red)';
+      } else if (tiers.has('L1') && tiers.has('L2')) {
+        level = 2;
+        label = 'PRE-CASCADE WATCH';
+        color = 'var(--st-orange)';
+      } else if (tiers.size >= 1) {
+        level = 1;
+        label = 'ELEVATED';
+        color = 'var(--st-amber)';
+      }
+
+      days.push({
+        dateKey: key,
+        shortDate: key.slice(5),
+        hits,
+        routine,
+        tiers: Array.from(tiers),
+        level,
+        label,
+        color
+      });
+    }
+    return days;
+  }
+
+  function renderAll() {
+    const nowMs = Date.now();
+    const activeTierHits = {};
+
+    ['L1', 'L2', 'L3'].forEach(tKey => {
+      const winMs = TIER_CONFIG[tKey].windowHours * 3600 * 1000;
+      activeTierHits[tKey] = state.items.filter(
+        it => it.tier === tKey && it.triggered && (nowMs - it.timestamp) <= winMs
+      );
+    });
+
+    const l1Up = activeTierHits.L1.length > 0;
+    const l2Up = activeTierHits.L2.length > 0;
+    const l3Up = activeTierHits.L3.length > 0;
+
+    const pill = document.getElementById('global-state-pill');
+    pill.className = 'state-pill';
+
+    if (state.commsFault) {
+      pill.textContent = 'PURPLE // COMMS FAULT';
+      pill.classList.add('c-purple');
+    } else if (l3Up && (l1Up || l2Up)) {
+      pill.textContent = 'RED // CASCADE WARNING';
+      pill.classList.add('c-red');
+    } else if (l1Up && l2Up) {
+      pill.textContent = 'ORANGE // PRE-CASCADE WATCH';
+      pill.classList.add('c-orange');
+    } else if (l1Up || l2Up || l3Up) {
+      pill.textContent = 'AMBER // ELEVATED';
+      pill.classList.add('c-amber');
+    } else {
+      pill.textContent = 'GREEN // NOMINAL';
+      pill.classList.add('c-green');
+    }
+
+    renderTierCards(activeTierHits);
+    render60DayGraph();
+    renderInspector();
+    renderReader();
+  }
+
+  function renderTierCards(activeTierHits) {
+    const container = document.getElementById('tiers-container');
+    container.innerHTML = '';
+    const nowMs = Date.now();
+    const h48Ms = 48 * 3600 * 1000;
+
+    ['L1', 'L2', 'L3'].forEach(tKey => {
+      const cfg = TIER_CONFIG[tKey];
+      const hits = activeTierHits[tKey];
+      const recent48h = state.items
+        .filter(i => i.tier === tKey && (nowMs - i.timestamp) <= h48Ms)
+        .sort((a, b) => b.timestamp - a.timestamp);
+      const allTierItems = state.items
+        .filter(i => i.tier === tKey)
+        .sort((a, b) => b.timestamp - a.timestamp);
+
+      const isHit = hits.length > 0;
+      const colorVar = isHit ? 'var(--st-amber)' : 'var(--st-green)';
+      const statusTxt = isHit ? `ELEVATED (${hits.length} HIT)` : 'NOMINAL';
+      const topItem = hits[0] || recent48h[0] || allTierItems[0];
+      const isSelectedCard = (state.viewMode === '48H_TIER' && state.activeTierFilter === tKey);
+
+      const card = document.createElement('div');
+      card.className = `tier-card ${isSelectedCard ? 'active-tier' : ''}`;
+      card.style.borderTopColor = colorVar;
+      card.setAttribute('data-pin-title', `${cfg.code} (CLICK FOR 48H FEED)`);
+      card.setAttribute('data-pin-sub', `${cfg.name} • ${recent48h.length} items in last 48h`);
+      card.setAttribute('data-pin-body',
+        `Click this card to open all ${cfg.code} feeds from the last 48 hours below.\nActive Crisis Hits: ${hits.length}\nGate Window: ${cfg.windowHours}h`
+      );
+
+      card.innerHTML = `
+        <div class="tier-header">
+          <span class="tier-id">${cfg.code}</span>
+          <span class="led-badge" style="color:${colorVar}">
+            <span class="led-dot"></span>${statusTxt}
+          </span>
+        </div>
+        <div class="tier-meta">
+          <span>${cfg.name}</span>
+          <span>48H ITEMS: ${recent48h.length}</span>
+        </div>
+        <div class="tier-latest">
+          ${topItem
+            ? `<div style="color:${topItem.triggered ? 'var(--st-amber)' : 'var(--text-dim)'};font-weight:700;margin-bottom:2px;">
+                 [${topItem.dateKey}] ${topItem.reason}
+               </div>
+               <div>${topItem.title.slice(0, 92)}${topItem.title.length > 92 ? '...' : ''}</div>`
+            : `<span style="color:var(--text-dim)">No cached items yet. Click "POLL / SYNC NOW" to fetch live XML feed.</span>`
+          }
+        </div>
+        <div class="tier-click-prompt">
+          <span>▸ CLICK CARD TO LOAD 48H ${tKey} FEED</span>
+          <span>${isSelectedCard ? '[ACTIVE VIEW]' : ''}</span>
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        state.viewMode = '48H_TIER';
+        state.activeTierFilter = tKey;
+        renderAll();
+        document.getElementById('workspace-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  function render60DayGraph() {
+    const track = document.getElementById('graph-track');
+    track.innerHTML = `
+      <div class="graph-tier-line" style="top:18px;">LVL 3 // RED CASCADE GATE</div>
+      <div class="graph-tier-line" style="top:48px;">LVL 2 // ORANGE PRE-CASCADE</div>
+      <div class="graph-tier-line" style="top:78px;">LVL 1 // AMBER SINGLE TIER</div>
+    `;
+
+    const days = getLast60DaysData();
+    days.forEach(d => {
+      const isSelected = (state.viewMode === 'DAY' && d.dateKey === state.selectedDate);
+      const col = document.createElement('div');
+      col.className = `day-col ${isSelected ? 'selected' : ''}`;
+
+      let heightPct = 10;
+      if (d.level === 1) heightPct = Math.min(48, 32 + d.hits.length * 6);
+      if (d.level === 2) heightPct = Math.min(74, 58 + d.hits.length * 6);
+      if (d.level === 3) heightPct = Math.min(100, 84 + d.hits.length * 5);
+
+      col.setAttribute('data-pin-title', `DATE // ${d.dateKey}`);
+      col.setAttribute('data-pin-sub', `State: ${d.label} (${d.hits.length} Triggers)`);
+      col.setAttribute('data-pin-body',
+        `Active Tiers: ${d.tiers.length ? d.tiers.join(' + ') : 'NONE'}\nCrisis Triggers: ${d.hits.length}\nRoutine/Filtered: ${d.routine.length}\nClick bar to inspect this date's feeds.`
+      );
+
+      col.innerHTML = `
+        <div class="day-hit-count">${d.hits.length > 0 ? d.hits.length : ''}</div>
+        <div class="day-bar" style="height:${heightPct}%;background:${d.color};box-shadow:${d.level >= 2 ? '0 0 8px ' + d.color : 'none'}"></div>
+        <div class="day-date-lbl">${d.shortDate}</div>
+      `;
+
+      col.addEventListener('click', () => {
+        state.viewMode = 'DAY';
+        state.selectedDate = d.dateKey;
+        renderAll();
+      });
+
+      track.appendChild(col);
+    });
+  }
+
+  function getFilteredInspectorList() {
+    const nowMs = Date.now();
+    const h48Ms = 48 * 3600 * 1000;
+    let pool = [];
+
+    if (state.viewMode === '48H_TIER') {
+      pool = state.items.filter(
+        it => it.tier === state.activeTierFilter && (nowMs - it.timestamp) <= h48Ms
+      );
+      // Fallback: if feed hasn't published in 48h, show most recent items for that tier
+      if (pool.length === 0) {
+        pool = state.items
+          .filter(it => it.tier === state.activeTierFilter)
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .slice(0, 15);
+      }
+    } else if (state.viewMode === '48H_ALL') {
+      pool = state.items.filter(it => (nowMs - it.timestamp) <= h48Ms);
+      if (pool.length === 0) {
+        pool = [...state.items].sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
+      }
+    } else {
+      pool = state.items.filter(it => it.dateKey === state.selectedDate);
+    }
+
+    pool.sort((a, b) => (Number(b.triggered) - Number(a.triggered)) || (b.timestamp - a.timestamp));
+    return state.showRoutine ? pool : pool.filter(i => i.triggered);
+  }
+
+  function renderInspector() {
+    const titleEl = document.getElementById('inspector-title');
+    const listEl = document.getElementById('inspector-content');
+    const displayList = getFilteredInspectorList();
+
+    if (state.viewMode === '48H_TIER') {
+      const cfg = TIER_CONFIG[state.activeTierFilter];
+      titleEl.innerHTML = `<span>◈ ${cfg.code} — LAST 48 HOURS (${displayList.length} ITEMS)</span>`;
+    } else if (state.viewMode === '48H_ALL') {
+      titleEl.innerHTML = `<span>◈ ALL TIERS (L1+L2+L3) — LAST 48 HOURS (${displayList.length} ITEMS)</span>`;
+    } else {
+      titleEl.innerHTML = `<span>◈ DATE ARCHIVE: ${state.selectedDate} (${displayList.length} ITEMS)</span>`;
+    }
+
+    listEl.innerHTML = '';
+
+    if (displayList.length === 0) {
+      listEl.innerHTML = `
+        <div class="hit-item routine" style="cursor:default;">
+          <div class="hit-body-wrap">
+            <div style="color:var(--st-green);font-weight:700;">✔ NO MATCHING ITEMS IN THIS VIEW</div>
+            <div style="color:var(--text-dim);font-size:11px;">
+              Click <strong>"⟳ POLL / SYNC NOW"</strong> in the top bar to pull the latest 48-hour feeds, or enable <strong>"ROUTINE FEEDS: ON"</strong> to browse non-crisis articles.
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // Auto-select first article for the In-App Reader if none selected
+    if (!state.selectedArticleId || !displayList.some(i => i.id === state.selectedArticleId)) {
+      state.selectedArticleId = displayList[0].id;
+    }
+
+    displayList.forEach(item => {
+      const isSelected = item.id === state.selectedArticleId;
+      const card = document.createElement('div');
+      card.className = `hit-item ${item.triggered ? '' : 'routine'} ${isSelected ? 'active-article' : ''}`;
+      card.style.borderLeftColor = item.triggered
+        ? (item.tier === 'L3' ? 'var(--st-red)' : 'var(--st-amber)')
+        : 'var(--border-bright)';
+
+      card.setAttribute('data-pin-title', `${item.tier} // IN-APP FEED ITEM`);
+      card.setAttribute('data-pin-sub', item.triggered ? 'COMPOUND CRISIS TRIGGER' : 'ROUTINE / FILTERED');
+      card.setAttribute('data-pin-body',
+        `Date: ${item.dateKey}\nVerdict: ${item.reason}\nClick item to open full text and images in the In-App Reader panel.`
+      );
+
+      if (state.safeImages && item.imageUrl) {
+        const thumb = document.createElement('img');
+        thumb.className = 'hit-thumb';
+        thumb.src = item.imageUrl;
+        thumb.alt = '';
+        thumb.referrerPolicy = 'no-referrer';
+        thumb.loading = 'lazy';
+        thumb.onerror = () => thumb.remove();
+        card.appendChild(thumb);
+      }
+
+      const bodyWrap = document.createElement('div');
+      bodyWrap.className = 'hit-body-wrap';
+      bodyWrap.innerHTML = `
+        <div class="hit-top">
+          <span style="font-weight:700;color:${item.triggered ? 'var(--accent-cyan)' : 'var(--text-dim)'}">
+            [${TIER_CONFIG[item.tier].code}] • ${item.dateKey} ${new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+          </span>
+          <span class="token-match" style="${item.triggered ? '' : 'background:transparent;border-color:var(--border-dim);color:var(--text-dim)'}">
+            ${item.reason}
+          </span>
+        </div>
+        <div class="hit-headline">${item.title}</div>
+      `;
+      card.appendChild(bodyWrap);
+
+      card.addEventListener('click', () => {
+        state.selectedArticleId = item.id;
+        renderInspector();
+        renderReader();
+      });
+
+      listEl.appendChild(card);
+    });
+  }
+
+  function renderReader() {
+    const container = document.getElementById('reader-body-container');
+    const badge = document.getElementById('reader-tier-badge');
+    const item = state.items.find(i => i.id === state.selectedArticleId);
+
+    if (!item) {
+      badge.textContent = 'IDLE';
+      container.innerHTML = `
+        <div style="color:var(--text-dim);padding:24px 8px;text-align:center;">
+          Click any level card (L1 / L2 / L3) or any feed item on the left to load its contents and images inside this reader.
+        </div>
+      `;
+      return;
+    }
+
+    const cfg = TIER_CONFIG[item.tier];
+    badge.textContent = `${cfg.code} // ${item.triggered ? 'CRISIS HIT' : 'ROUTINE'}`;
+    badge.style.color = item.triggered ? 'var(--st-amber)' : 'var(--accent-cyan)';
+
+    container.innerHTML = '';
+
+    const metaBar = document.createElement('div');
+    metaBar.className = 'reader-meta-bar';
+    metaBar.innerHTML = `
+      <span><strong>SOURCE:</strong> ${cfg.name}</span>
+      <span><strong>TIMESTAMP:</strong> ${item.dateKey} ${new Date(item.timestamp).toLocaleTimeString()}</span>
+    `;
+    container.appendChild(metaBar);
+
+    const headline = document.createElement('div');
+    headline.className = 'reader-headline';
+    headline.style.margin = '8px 0';
+    headline.textContent = item.title;
+    container.appendChild(headline);
+
+    const ruleBanner = document.createElement('div');
+    ruleBanner.style.cssText = 'font-size:11px;margin-bottom:8px;padding:4px 8px;background:var(--bg-base);border:1px solid var(--border-dim);border-radius:2px;';
+    ruleBanner.innerHTML = `<strong>FILTER VERDICT:</strong> <span style="color:${item.triggered ? 'var(--st-amber)' : 'var(--st-green)'}">${item.reason}</span>`;
+    container.appendChild(ruleBanner);
+
+    if (state.safeImages && item.imageUrl) {
+      const heroImg = document.createElement('img');
+      heroImg.className = 'reader-hero-img';
+      heroImg.src = item.imageUrl;
+      heroImg.alt = item.title;
+      heroImg.referrerPolicy = 'no-referrer';
+      heroImg.loading = 'lazy';
+      heroImg.onerror = () => heroImg.remove();
+      container.appendChild(heroImg);
+    }
+
+    const bodyDiv = document.createElement('div');
+    bodyDiv.className = 'reader-content';
+    bodyDiv.textContent = item.bodyText || 'No additional article summary provided in the RSS XML payload.';
+    container.appendChild(bodyDiv);
+
+    const footer = document.createElement('div');
+    footer.className = 'reader-footer';
+    footer.style.marginTop = '10px';
+    footer.innerHTML = `
+      <span style="font-size:10.5px;color:var(--text-dim);">SANDBOXED LOCAL VIEW (NO TRACKERS)</span>
+      <a class="ext-link-btn" href="${item.link}" target="_blank" rel="noopener noreferrer">
+        OPEN EXTERNAL SITE ↗
+      </a>
+    `;
+    container.appendChild(footer);
+  }
+
+  function toggleDrillSimulation() {
+    state.drillMode = !state.drillMode;
+    const btn = document.getElementById('btn-drill');
+
+    if (!state.drillMode) {
+      state.items = state.items.filter(i => !i.isDrill);
+      btn.classList.remove('drill-active');
+      btn.textContent = '⚡ SIMULATE DRILL';
+      renderAll();
+      return;
+    }
+
+    btn.classList.add('drill-active');
+    btn.textContent = '⚡ DRILL ACTIVE (CLICK TO CLEAR)';
+
+    const now = Date.now();
+    const dayMs = 86400 * 1000;
+    const samples = [
+      {
+        offset: 0,
+        tier: 'L1',
+        title: '[DRILL] MARAD orders emergency activation of Ready Reserve Sealift vessels',
+        summary: 'Department of Transportation and MARAD issued an emergency order for Ready Reserve Force surge deployment from CONUS ports.',
+        img: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        offset: 0,
+        tier: 'L2',
+        title: '[DRILL] CISA issues Emergency Directive on active exploitation of substation SCADA PLCs',
+        summary: 'Mandatory Emergency Directive requires bulk-power operators to isolate SCADA and PLC interfaces following destructive nation-state activity.',
+        img: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        offset: 0,
+        tier: 'L3',
+        title: '[DRILL] MISO declares EEA Level 2 Energy Emergency and Conservative Operations across Indiana',
+        summary: 'Midcontinent Independent System Operator declared an EEA Level 2 Energy Emergency and Conservative Operations across Central Indiana due to frequency instability.',
+        img: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        offset: 5,
+        tier: 'L2',
+        title: '[DRILL-SUPPRESSED] CISA Adds Two Known Exploited Vulnerabilities to Catalog (Oct 30 Check)',
+        summary: 'Routine enterprise KEV Catalog addition for CVE-2026-111357 based on active exploitation. Automatically suppressed by v2 KEV exclusion math.',
+        img: null
+      },
+      {
+        offset: 12,
+        tier: 'L1',
+        title: '[DRILL] Seventh Fleet surge deployment and naval intercept reported',
+        summary: 'Forward naval elements executed an unscheduled surge deployment and kinetic intercept.',
+        img: null
+      },
+      {
+        offset: 12,
+        tier: 'L2',
+        title: '[DRILL] Destructive wiper malware targeting industrial pipeline PLCs',
+        summary: 'Forensic teams confirmed destructive wiper payloads targeting pipeline PLC controllers.',
+        img: null
+      }
+    ];
+
+    samples.forEach(s => {
+      const pub = new Date(now - (s.offset * dayMs)).toISOString();
+      const evaluated = evaluateArticle(s.tier, s.title, s.summary, pub, TIER_CONFIG[s.tier].url, s.img, true);
+      state.items.push(evaluated);
+    });
+
+    state.viewMode = '48H_ALL';
+    renderAll();
+  }
+
+  function toggleAutoPoll() {
+    const btn = document.getElementById('btn-auto-toggle');
+    const input = document.getElementById('poll-sec-input');
+
+    if (state.autoTimerId) {
+      clearInterval(state.autoTimerId);
+      clearInterval(state.countdownId);
+      state.autoTimerId = null;
+      state.countdownId = null;
+      btn.classList.remove('active-toggle');
+      btn.textContent = 'AUTO: OFF';
+      return;
+    }
+
+    const sec = Math.max(10, parseInt(input.value, 10) || 300);
+    input.value = sec;
+    state.remainingSec = sec;
+    btn.classList.add('active-toggle');
+    btn.textContent = `AUTO: ${state.remainingSec}s`;
+
+    pollAllFeeds();
+
+    state.countdownId = setInterval(() => {
+      state.remainingSec--;
+      if (state.remainingSec <= 0) state.remainingSec = sec;
+      btn.textContent = `AUTO: ${state.remainingSec}s`;
+    }, 1000);
+
+    state.autoTimerId = setInterval(pollAllFeeds, sec * 1000);
+  }
+
+  // PRESS-AND-HOLD TACTICAL PIN CALLOUT SYSTEM
+  let holdTimer = null;
+  const overlay = document.getElementById('tactical-overlay');
+  const svg = document.getElementById('tactical-svg');
+  const box = document.getElementById('tactical-box');
+
+  function showTacticalPin(x, y, targetEl) {
+    const title = targetEl.getAttribute('data-pin-title') || 'HUD ELEMENT';
+    const sub = targetEl.getAttribute('data-pin-sub') || targetEl.tagName;
+    const body = targetEl.getAttribute('data-pin-body') || 'Interactive CASCADE // OPS telemetry node.';
+
+    document.getElementById('tac-title').textContent = title;
+    document.getElementById('tac-sub').textContent = sub;
+    document.getElementById('tac-body').textContent = body;
+
+    overlay.style.display = 'block';
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const boxW = 260;
+    const boxH = box.offsetHeight || 115;
+
+    const dir = (x + 65 + boxW > vw - 12) ? -1 : 1;
+    const elbowX = x + (34 * dir);
+    const elbowY = Math.max(24, y - 34);
+    const endX = elbowX + (28 * dir);
+
+    let boxLeft = dir === 1 ? endX : endX - boxW;
+    let boxTop = Math.min(vh - boxH - 12, Math.max(12, elbowY - 14));
+
+    box.style.left = `${boxLeft}px`;
+    box.style.top = `${boxTop}px`;
+
+    svg.innerHTML = `
+      <circle cx="${x}" cy="${y}" r="9" fill="rgba(0,229,255,0.15)" stroke="#00e5ff" stroke-width="1.5"/>
+      <circle cx="${x}" cy="${y}" r="3" fill="#00e5ff"/>
+      <polyline points="${x},${y} ${elbowX},${elbowY} ${endX},${elbowY}"
+                fill="none" stroke="#00e5ff" stroke-width="1.8" stroke-dasharray="3,2"/>
+      <circle cx="${elbowX}" cy="${elbowY}" r="2.5" fill="#00e5ff"/>
+    `;
+  }
+
+  function hideTacticalPin() {
+    clearTimeout(holdTimer);
+    overlay.style.display = 'none';
+  }
+
+  document.addEventListener('pointerdown', e => {
+    const target = e.target.closest('[data-pin-title]');
+    if (!target) return;
+    const { clientX, clientY } = e;
+    holdTimer = setTimeout(() => showTacticalPin(clientX, clientY, target), 220);
+  });
+
+  document.addEventListener('pointerup', hideTacticalPin);
+  document.addEventListener('pointercancel', hideTacticalPin);
+  document.addEventListener('contextmenu', e => {
+    const target = e.target.closest('[data-pin-title]');
+    if (target) {
+      e.preventDefault();
+      showTacticalPin(e.clientX, e.clientY, target);
+    }
+  });
+
+  // Wire UI Controls
+  document.getElementById('btn-poll').addEventListener('click', pollAllFeeds);
+  document.getElementById('btn-auto-toggle').addEventListener('click', toggleAutoPoll);
+  document.getElementById('btn-drill').addEventListener('click', toggleDrillSimulation);
+
+  document.getElementById('btn-48h-all').addEventListener('click', () => {
+    state.viewMode = '48H_ALL';
+    renderAll();
+  });
+
+  document.getElementById('btn-purge-recalc').addEventListener('click', () => {
+    revalidateAllCachedItems();
+    renderAll();
+    document.getElementById('sync-status-lbl').textContent = 'ARCHIVE MATH RE-VERIFIED • OCT 30 BLIPS CLEARED';
+  });
+
+  document.getElementById('btn-toggle-routine').addEventListener('click', e => {
+    state.showRoutine = !state.showRoutine;
+    e.target.textContent = `ROUTINE FEEDS: ${state.showRoutine ? 'ON' : 'OFF'}`;
+    e.target.classList.toggle('active-toggle', state.showRoutine);
+    renderInspector();
+  });
+
+  document.getElementById('btn-toggle-images').addEventListener('click', e => {
+    state.safeImages = !state.safeImages;
+    e.target.textContent = `SAFE IMAGES: ${state.safeImages ? 'ON' : 'OFF'}`;
+    e.target.classList.toggle('active-toggle', state.safeImages);
+    renderInspector();
+    renderReader();
+  });
+
+  // Initialize & Migrate Existing Cache
+  loadArchive();
+  renderAll();
+  const scrollWrap = document.getElementById('graph-scroll');
+  scrollWrap.scrollLeft = scrollWrap.scrollWidth;
+})();
+</script>
+</body>
+</html>
