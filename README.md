@@ -40,7 +40,7 @@ The dashboard connects **signals**, not facts about causation. Even a red cascad
 2. Hit **SYNC** to retrieve current sources. A fresh install also attempts an initial sync automatically. Check the network and feed indicators rather than assuming it succeeded.
 3. Explore the **waterfall** and select an item to open its dossier. Use **Read full source** to try to extract the article into a more readable view, or **Visit original** to open the publisher's page.
 4. Click a **micro monitor** to inspect its source, current rule status, and collected history.
-5. Use **DRILL** to practice. Drill data is synthetic and labelled; turn it off to hide it and read the cascade using live items only. Turning it off does not delete the drill archive.
+5. Use **DRILL** to practice. Drill data is synthetic and labelled; turn it off to hide it and read the cascade using live items only. Turning it off hides drill entries from the stream, related signals, and cascade calculations without deleting them. If a previously selected fictional dossier or a saved brief item remains visible, it is grey and prominently marked **FICTIONAL DRILL · NOT A REAL EVENT**. Exported drill items are labelled as fictional too.
 
 > On a fresh installation, DRILL is on by default. Switch it off before interpreting the cascade as live-only. A mixed live-and-drill view is still a mixed view, even if a live item is present.
 
@@ -52,7 +52,7 @@ The dashboard connects **signals**, not facts about causation. Even a red cascad
 | **L2 · NAT-ICS** | Critical-infrastructure cyber | [CISA Advisories](https://www.cisa.gov/cybersecurity-advisories/all.xml) | 24 hours |
 | **L3 · REG-GRID** | Midwest grid context, including MISO / PJM | [Utility Dive](https://www.utilitydive.com/feeds/news/) | 12 hours |
 
-Each tier searches the item’s title and feed text for its configured **target terms** and **crisis terms**. A matching exclusion term suppresses the item before it can arm a gate. A target without a crisis term is shown as watch/context; it does not arm the gate. The current lists live in the `TIERS` configuration inside `index.html` and can be inspected or edited there.
+Each tier searches the item’s title and feed text for its configured **target terms** and **crisis terms**. A matching exclusion term suppresses the item before it can count as a match. **MATCH** (previously called “armed”) means both rule terms occur in one item; it does not mean an incident is verified. A target without a crisis term is shown as watch/context; it does not arm the gate. The current lists live in the `TIERS` configuration inside `index.html` and can be inspected or edited there.
 
 | State | Rule of thumb |
 |:---|:---|
@@ -79,18 +79,18 @@ The network indicator reflects what the **browser reports**, not a comprehensive
 
 ## Micro infrastructure monitoring capsules
 
-These small, independent monitors sit above the waterfall. Click any capsule for its source, scope, last successful check, and stored entries. They **do not feed the L1/L2/L3 cascade**.
+These small, independent monitors sit above the waterfall. Click any capsule for its source, scope, matching rules, last successful check, and stored entries. Each compact card has ten thin bars: the highest status observed each day on this device, oldest to newest. Grey means no observation, not an all-clear; these are snapshots, not continuous monitoring. They **do not feed the L1/L2/L3 cascade**.
 
 | Capsule | Source | Scope / what it watches |
 |:---|:---|:---|
-| **Local weather** | [National Weather Service](https://api.weather.gov/alerts/active?zone=INC097) | Active alerts for Marion County, Indiana. Severe/extreme alerts or a tornado warning can trigger red. |
-| **Space weather** | [NOAA Space Weather Prediction Center](https://services.swpc.noaa.gov/products/alerts.json) | National/global space-weather products; recent watch, warning, and alert wording. |
+| **Local weather** | [National Weather Service](https://api.weather.gov/alerts/active?zone=INC097) | Active alerts for one selected Midwest county—not the entire Midwest. Severe/extreme alerts or a tornado warning can trigger red. The county is set by the weather source URL in `CAPS`. |
+| **Space weather** | [NOAA Space Weather Prediction Center](https://services.swpc.noaa.gov/products/alerts.json) | National/global space-weather products; recent watches, warnings and alerts. G3–G5, S3–S5 or R3–R5 in a product title trigger review. |
 | **Health** | [CDC Newsroom](https://tools.cdc.gov/api/v2/resources/media/132608.rss) | National outbreak and public-health-emergency keywords—not local disease surveillance. |
 | **Food safety** | [CDC food safety feed](https://tools.cdc.gov/api/v2/resources/media/316422.rss) | National recall and foodborne-illness keywords. |
-| **Cyber** | [CISA alerts](https://us-cert.cisa.gov/ncas/alerts.xml) | National cyber and infrastructure-related keywords. |
+| **Cyber** | [CISA advisories](https://www.cisa.gov/cybersecurity-advisories/all.xml) | National cyber and infrastructure-related keywords. |
 | **World** | [USNI News](https://news.usni.org/feed) | International and national conflict-related keywords. |
 
-For the non-weather capsules, a recent keyword match is a **watch**; three or more matching items in 24 hours produce a flashing red **review** indicator. This is a simple count, not confirmation of an incident, an assessment of local impact, or a prediction. A source failure or a last successful check older than six hours is shown as **COMMS**. The capsules refresh with the main sync or from their own detail window.
+For health, food, cyber and world, a recent keyword match is a **watch**; three or more matching items in 24 hours produce a flashing red **review** indicator. Space weather uses the NOAA scale rule in its table row; weather uses the active-alert rule. This is a simple count, not confirmation of an incident, an assessment of local impact, or a prediction. A source failure or a last successful check older than six hours is shown as **COMMS**. The capsules refresh with the main sync or from their own detail window.
 
 **History has limits.** Capsule entries accumulate in this browser as the app successfully checks sources, up to 60 days and a per-capsule storage limit. The dashboard cannot reconstruct items a feed no longer provides or guarantee 60 days on a fresh install. Clearing browser data, using a different browser/device, or blocked storage can remove or prevent local history. Source updates, cancellations, and duplicate reports may not map cleanly to distinct real-world events.
 
@@ -116,7 +116,7 @@ For the non-weather capsules, a recent keyword match is a **watch**; three or mo
 
 ## How the data gets here
 
-The application runs in your browser. Main feed sync attempts a configured custom relay first, then public feed-conversion services, with fallback relays if necessary. Public services can throttle, change, or go offline. The independent capsules use direct requests for NWS and NOAA, and public feed converters for their RSS sources. The source reader first attempts a direct fetch and may fall back to a public relay. **A custom main-feed relay does not automatically cover the capsules or source reader.**
+The application runs in your browser. Main feed sync attempts a configured custom relay first, then public feed-conversion services, with fallback relays if necessary. Public services can throttle, change, or go offline. The independent capsules try direct requests and fallback relay paths; RSS monitors also use public feed converters and, for cyber, an alternate CISA feed. A configured custom relay is also tried by the capsules. The source reader first attempts a direct fetch and may fall back to a public relay. **The source reader does not use the custom relay.** Availability can change or differ between networks, and a failed source remains visibly marked COMMS rather than falsely green.
 
 For more control over main-feed access, open **Field Manual → Relay configuration** and enter a relay URL with `{url}` where the encoded feed URL should go, for example:
 

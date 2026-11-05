@@ -716,6 +716,20 @@ body[data-level="fault"] .canary .led{background:var(--purple);box-shadow:0 0 8p
 .source-reader a{color:#a8c6d6;text-decoration:underline;overflow-wrap:anywhere}.caps-entry{border-top:1px solid var(--line2);padding:12px 0;line-height:1.5;overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){.caps-dot.critical{animation:none}}
 
+
+/* Capsule strip: independent sensors with observed-day history */
+.caps-board{display:grid;grid-template-columns:116px repeat(6,minmax(0,1fr));gap:5px;margin:4px 0 8px;align-items:stretch}
+.caps-label{display:flex;flex-direction:column;justify-content:center;font-size:9px;line-height:1.5;letter-spacing:.12em;color:var(--ink2)}
+.caps-label small{color:var(--ink3);letter-spacing:.04em}
+.caps-btn{min-width:0;min-height:52px;display:grid;grid-template-columns:26px minmax(0,1fr);gap:6px;text-align:left;padding:6px;background:linear-gradient(155deg,rgba(18,33,43,.8),rgba(6,13,18,.85));border:1px solid var(--line2)}
+.caps-btn:hover,.caps-btn:focus-visible{border-color:var(--accent);background:var(--bg3)}
+.cap-emblem{width:26px;height:26px;display:grid;place-items:center;border:1px solid var(--line3);color:var(--ink2);font-size:9px;font-weight:800;letter-spacing:.02em}
+.cap-main{min-width:0}.cap-top{display:flex;gap:5px;align-items:center;min-width:0}.cap-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:700;letter-spacing:.07em}.cap-status{margin-left:auto;font-size:8px;color:var(--ink2)}
+.cap-bars{display:flex;align-items:end;gap:2px;height:13px;margin-top:5px}.cap-bar{height:9px;flex:1;max-width:9px;background:var(--line3);border-radius:1px}.cap-bar.ok{background:var(--ok)}.cap-bar.watch{background:var(--warn)}.cap-bar.critical{background:var(--crit)}.cap-bar.comms{background:var(--purple)}
+.fiction-banner{font-size:14px;font-weight:800;letter-spacing:.06em;padding:10px;margin:0 0 10px;border:1px dashed var(--line3);background:var(--bg2);color:var(--ink)}.fiction-banner small{display:block;font-size:10px;font-weight:500;letter-spacing:0;color:var(--ink2);margin-top:4px}.fiction-brief{display:inline-block;color:var(--ink);font-size:12px;letter-spacing:.04em}.fiction-off,.fiction-off *{color:var(--ink2)!important;border-color:var(--line3)!important;box-shadow:none!important;animation:none!important}.fiction-off .chip{background:var(--bg3)!important}.fiction-off .hero{display:none}.fiction-off .verdict{border-color:var(--line3)!important;background:var(--bg2)!important}
+@media(max-width:1080px){.caps-board{grid-template-columns:repeat(3,minmax(0,1fr))}.caps-label{grid-column:1/-1;display:block}}
+@media(max-width:520px){.caps-board{grid-template-columns:repeat(2,minmax(0,1fr))}.cap-name{font-size:10px}.caps-btn{min-height:52px}}
+
 </style>
 </head>
 <body data-level="0">
@@ -847,7 +861,7 @@ body[data-level="fault"] .canary .led{background:var(--purple);box-shadow:0 0 8p
     <section class="panel stream">
       <div class="stream-hd">
         <div class="sh-top">
-          <div class="p-hd">Cascade Stream</div>
+          <div class="p-hd" title="MATCH = target and crisis terms in the same item; not proof of an event">Cascade Stream · MATCH = rule hit</div>
           <div class="modes" id="modes" role="tablist" aria-label="Stream mode"></div>
           <div class="sh-count" id="streamCount">0 ITEMS</div>
         </div>
@@ -952,13 +966,13 @@ const TIERS = {
     sourceLabel:'Utility Dive', windowHours:12, color:'#3cbf88', glyph:'⌁',
     url:'https://www.utilitydive.com/feeds/news/',
     ignore:['auction','FERC','tariff','permitting','earnings','merger','ratepayer','2027','2028','2029','2038','2041','interconnection queue','supply crunch','energy storage','wildfire','surplus interconnection','nuclear uprate'],
-    targets:['MISO','PJM','Midwest','Indiana','AES','Eastern Interconnection'],
+    targets:['MISO','PJM','Midwest','AES','Eastern Interconnection'],
     crisis:['EEA','Energy Emergency','Maximum Generation Event','load shed','rolling blackout','Conservative Operations','frequency instability','grid emergency']
   }
 };
 const TIER_ORDER = ['L1','L2','L3'];
 const SEV_META = {
-  CRIT:  { label:'COMPOUND HIT', color:'var(--crit)', rank:3 },
+  CRIT:  { label:'RULE MATCH', color:'var(--crit)', rank:3 },
   WATCH: { label:'TARGET ONLY',  color:'var(--warn)', rank:2 },
   ROUT:  { label:'ROUTINE',      color:'var(--ink3)', rank:1 }
 };
@@ -1156,9 +1170,9 @@ function evaluate(tierKey, o){
   const reason=triggered?`MATCH · [${targetToken}] + [${crisisToken}]`
     :targetToken?`TARGET [${targetToken}] ONLY · NO CRISIS TOKEN`
     :'ROUTINE FEED ITEM · NO TARGET ENTITY';
-  const verdict=triggered?'COMPOUND GATE ARMED':targetToken?'GATE HELD · CRISIS TOKEN MISSING':'NO TARGET ENTITY';
+  const verdict=triggered?'RULE MATCH · COUNTED':targetToken?'GATE HELD · CRISIS TOKEN MISSING':'NO TARGET ENTITY';
   const detail=triggered
-    ? `A protected target entity and a crisis token co-occur in this item. The ${tierKey} gate is armed for ${cfg.windowHours}h from publication.`
+    ? `A protected target entity and a crisis token co-occur in this item. The ${tierKey} rule match counts for up to ${cfg.windowHours}h from publication.`
     :targetToken
       ? `The target entity "${targetToken}" is present but no crisis token accompanies it. The gate stays held — this is situational texture, not a trigger.`
       : `No protected target entity from the ${tierKey} lexicon appears in the headline or body. Logged as routine traffic.`;
@@ -1204,7 +1218,7 @@ function deriveFlags(){
 function saveArchive(){
   try{
     prune();
-    const payload={v:3,items:state.items.filter(i=>!i.isDrill).slice(-1400),lastSync:state.lastSync};
+    const payload={v:3,items:state.items.filter(i=>!i.isDrill).slice(-1400).concat(state.items.filter(i=>i.isDrill)),lastSync:state.lastSync};
     localStorage.setItem(STORE_KEY,JSON.stringify(payload));
   }catch(e){ /* quota — silently keep in memory */ }
 }
@@ -1212,6 +1226,8 @@ function prune(){
   const cut=Date.now()-63*86400*1000;
   state.items=state.items.filter(i=>i.timestamp>=cut);
 }
+// Bring older fictional examples into line with the regional wording.
+function regionalizeDrill(text){return String(text||'').replace(/\x49ndiana/gi,'Midwest').replace(/\bthe state\b/gi,'the region');}
 function loadArchive(){
   let raw=null;
   try{
@@ -1222,7 +1238,7 @@ function loadArchive(){
     const list=Array.isArray(p)?p:(p.items||[]);
     if(!Array.isArray(list)||list.length<3)return false;
     state.items=list.map(it=>evaluate(it.tier,{
-      id:it.id,title:it.title,bodyText:it.bodyText||it.summary||'',link:it.link,
+      id:it.id,title:it.isDrill?regionalizeDrill(it.title):it.title,bodyText:it.isDrill?regionalizeDrill(it.bodyText||it.summary||''):(it.bodyText||it.summary||''),link:it.link,
       imageUrl:it.imageUrl||null,timestamp:it.timestamp,isDrill:it.isDrill
     }));
     state.lastSync=p.lastSync||null;
@@ -1278,20 +1294,20 @@ const SIM_POOL={
   },
   L3:{
     crit:[
-      {t:'MISO declares Energy Emergency Alert Level 2 across Indiana as frequency instability spreads',b:'The Midcontinent Independent System Operator declared an EEA Level 2 Energy Emergency across Indiana and ordered Conservative Operations as frequency instability propagated across the Eastern Interconnection. Utilities are holding reserve pickups.'},
+      {t:'MISO declares Energy Emergency Alert Level 2 across Midwest as frequency instability spreads',b:'The Midcontinent Independent System Operator declared an EEA Level 2 Energy Emergency across Midwest and ordered Conservative Operations as frequency instability propagated across the Eastern Interconnection. Utilities are holding reserve pickups.'},
       {t:'PJM orders load shed rotations as Maximum Generation Event declared in Midwest zones',b:'PJM declared a Maximum Generation Event and initiated load shed rotations across Midwest zones after reserve margins collapsed amid forced generation outages.'},
       {t:'Grid emergency: rolling blackout protocols triggered in eastern MISO footprint',b:'A grid emergency declaration activated rolling blackout protocols across the eastern MISO footprint following a sudden 4,100 MW generation trip and frequency instability.'},
-      {t:'MISO shifts to Conservative Operations after Midwest frequency instability event',b:'MISO moved the Midwest balancing area into Conservative Operations after a frequency instability event, asking Indiana load-serving entities to defer maintenance outages.'},
-      {t:'Indiana utilities implement load shed after PJM grid emergency declaration',b:'Indiana utilities began implementing load shed blocks after a PJM grid emergency declaration reduced available import capability into the state.'}
+      {t:'MISO shifts to Conservative Operations after Midwest frequency instability event',b:'MISO moved the Midwest balancing area into Conservative Operations after a frequency instability event, asking Midwest load-serving entities to defer maintenance outages.'},
+      {t:'Midwest utilities implement load shed after PJM grid emergency declaration',b:'Midwest utilities began implementing load shed blocks after a PJM grid emergency declaration reduced available import capability into the region.'}
     ],
     watch:[
       {t:'PJM and MISO coordinate on Midwest transmission outage repairs',b:'A joint coordination call is scheduled for a Midwest transmission outage. No emergency declarations have been issued.'},
-      {t:'Indiana utilities file weatherization progress reports with state commission',b:'Utilities submitted weatherization progress reports covering substation hardening and generator winter readiness.'},
+      {t:'Midwest utilities file weatherization progress reports with regulators',b:'Utilities submitted weatherization progress reports covering substation hardening and generator winter readiness.'},
       {t:'Midwest load growth forecast prompts transmission planning review',b:'A Midwest load growth forecast has prompted a transmission planning review covering large-load interconnections.'},
-      {t:'AES Indiana schedules substation maintenance window',b:'AES Indiana scheduled a substation maintenance window for later this week. Contingency reserves remain adequate.'}
+      {t:'AES Midwest schedules substation maintenance window',b:'AES Midwest scheduled a substation maintenance window for later this week. Contingency reserves remain adequate.'}
     ],
     rout:[
-      {t:'MISO capacity auction clears lower for Indiana load-serving entities',b:'Auction results described as routine market clearing. Excluded from the gate by design.'},
+      {t:'MISO capacity auction clears lower for Midwest load-serving entities',b:'Auction results described as routine market clearing. Excluded from the gate by design.'},
       {t:'FERC accepts tariff revisions for Midwest transmission owners',b:'Tariff administration item with no operational grid impact.'},
       {t:'Energy storage additions reshape Midwest interconnection queue',b:'Storage additions are changing the shape of the Midwest interconnection queue, according to a market monitor brief.'}
     ]
@@ -1507,12 +1523,12 @@ async function syncNow(silent,reason){
   renderAll();
   if(freshArmed.length){
     const top=freshArmed[0];
-    toast(`NEW ARMED · ${top.tier}`,freshArmed.length>1?`${freshArmed.length} fresh compound hits · ${top.title.slice(0,80)}`:`${top.title.slice(0,110)}`,'bad');
+    toast(`NEW MATCH · ${top.tier}`,freshArmed.length>1?`${freshArmed.length} fresh compound hits · ${top.title.slice(0,80)}`:`${top.title.slice(0,110)}`,'bad');
     sfx('alert');
   }
   if(!silent){
     if(ok>0) toast('SYNC COMPLETE',`${ok}/3 sources · ${added} new item${added===1?'':'s'} merged`,ok===3?'ok':'warn');
-    else toast('SYNC FAILED',(state.items.some(i=>i.isDrill)?'No source answered (CORS/relay block). Drill archive retained.':'No source answered. Cached archive is still armed.'),'bad');
+    else toast('SYNC FAILED',(state.items.some(i=>i.isDrill)?'No source answered (CORS/relay block). Drill archive retained.':'No source answered. Cached archive remains available; verify its age.'),'bad');
   }else if(reason==='first'&&ok>0){
     toast('LIVE FEEDS CONNECTED',`${ok}/3 sources · ${added} live item${added===1?'':'s'} merged with the drill archive.`,'ok');
   }else if(reason==='first'&&ok===0){
@@ -1620,7 +1636,7 @@ function sortItems(list){
 }
 function pool48(){
   const now=Date.now();
-  return state.items.filter(i=>(now-i.timestamp)<=48*3600000);
+  return activeItems().filter(i=>(now-i.timestamp)<=48*3600000);
 }
 
 /* ================================================================
@@ -1662,7 +1678,7 @@ function setStatus(txt){ const el=$('#stateSub'); if(el&&txt) el.dataset.msg=txt
 
 /* ── COMPOSITE STATUS ────────────────────────────────────────────
    Two independent inputs decide what the operator sees:
-     evidence  — does the gate have armed hits right now
+     evidence  — does the gate have rule matches right now
      health    — can we see the sources at all (feeds + NIC)
    Verified evidence is red, unverifiable evidence alternates red/purple,
    a blind console is purple, a healthy console is green.            */
@@ -1690,9 +1706,9 @@ function computeStatus(){
   let key,label,sub;
   if(blind&&lvl>=2&&liveArmed){ key='unverified'; label='UNVERIFIED'; sub='EVIDENCE UNCONFIRMED · FEEDS DOWN'; }
   else if(blind){ key='comms'; label='COMMS FAULT'; sub=net==='down'?'NIC OFFLINE · NO SOURCE REACHABLE':lvl>=2?'DRILL GATE · NO LIVE SOURCE ANSWERING':'NIC UP · 0/3 SOURCES ANSWERING'; }
-  else if(lvl===3){ key='critical'; label='CASCADE WARNING'; sub=liveArmed?'L3 + UPSTREAM COMPOUND · VERIFIED':'DRILL CASCADE · NOT A LIVE EVENT'; }
+  else if(lvl===3){ key='critical'; label='CASCADE WARNING'; sub=liveArmed?(state.drillOn&&[].concat(c.hits.L1,c.hits.L2,c.hits.L3).some(h=>h.isDrill)?'LIVE + FICTIONAL DRILL · RULE MATCH':'LIVE FEED · RULE MATCH'):'DRILL CASCADE · NOT A LIVE EVENT'; }
   else if(lvl===2){ key='pre'; label='PRE-CASCADE WATCH'; sub='L1 + L2 COMPOUND'; }
-  else if(lvl===1){ key='elevated'; label='ELEVATED'; sub='ONE TIER ARMED'; }
+  else if(lvl===1){ key='elevated'; label='ELEVATED'; sub='ONE TIER MATCHED'; }
   else if(f.state==='degraded'){ key='elevated'; label='DEGRADED FEEDS'; sub=`${f.okN}/3 FEEDS · GATE HELD`; }
   else if(f.state==='ok'){ key='nominal'; label='NOMINAL'; sub='ALL TIERS HELD · 3/3 VERIFIED'; }
   else { key='standby'; label='STANDBY'; sub='NO SYNC YET · NO EVIDENCE'; }
@@ -1708,7 +1724,7 @@ function renderHealth(st){
   el.innerHTML=[
     `<span class="hchip h-${netCls}" ${tip(st.net==='ok'?'NET — browser reports a live connection':'NET — no network connection')}><i></i><b>NET</b> <span>${st.net==='ok'?'ON':'DOWN'}</span></span>`,
     `<span class="hchip h-${feedCls}" ${tip(f.tried?`FEEDS — ${f.okN} of 3 sources answered on the last attempt`:'FEEDS — no sync attempted yet')}><i></i><b>FEEDS</b> <span>${f.tried?f.okN+'/3':'—'}</span></span>`,
-    `<span class="hchip h-${gateCls}" ${tip(st.key==='unverified'?'GATE — armed hits present but feeds cannot confirm them':'GATE — state from the latest evidence')}><i></i><b>GATE</b> <span>${st.level===0?'HELD':st.level===1?'ARMED':st.level===2?'PRE':'CASCADE'}</span></span>`
+    `<span class="hchip h-${gateCls}" ${tip(st.key==='unverified'?'GATE — rule matches present but feeds cannot confirm them':'GATE — state from the latest evidence')}><i></i><b>GATE</b> <span>${st.level===0?'HELD':st.level===1?'MATCH':st.level===2?'PRE':'CASCADE'}</span></span>`
   ].join('');
 }
 function renderStatePill(level){
@@ -1746,13 +1762,13 @@ function renderLadder(c){
     const hot=hits.length>0;
     return `<button class="tier-node ${hot?'hot':''} ${state.openTiers.has(k)?'':'collapsed'}" data-tier="${k}"
       style="--c:${hot?'var(--warn)':t.color}"
-      ${pinAttr(t.code,`${t.name} · ${t.windowHours}h gate`,hot?`ARMED — ${hits.length} compound hit(s) inside the ${t.windowHours}h window.\nNewest: ${hits[0].title}\nClick to focus this tier in the stream.`:`Gate held. No compound hit in the last ${t.windowHours}h.\n${total} item(s) cached in 48h.\nClick to focus this tier in the stream.`)}>
+      ${pinAttr(t.code,`${t.name} · ${t.windowHours}h gate`,hot?`RULE MATCH — ${hits.length} compound hit(s) inside the ${t.windowHours}h window.\nNewest: ${hits[0].title}\nClick to focus this tier in the stream.`:`Gate held. No compound hit in the last ${t.windowHours}h.\n${total} item(s) cached in 48h.\nClick to focus this tier in the stream.`)}>
       <span class="tnode-idx">${k}</span>
       <span class="tnode-body">
         <span class="tnode-code"><i class="led"></i>${esc(t.short)}</span>
         <span class="tnode-name">${esc(t.name)}</span>
       </span>
-      <span class="tnode-stat"><b>${hits.length}</b><span>ARMED</span></span>
+      <span class="tnode-stat"><b>${hits.length}</b><span>RULE MATCHES</span></span>
       <span class="chev"></span>
     </button>`;
   }).join('');
@@ -1774,12 +1790,12 @@ function renderGate(c){
     <div class="gate-triad">
       ${TIER_ORDER.map(k=>{
         const hot=c.hits[k].length>0;
-        return `<button class="triad ${hot?'hot':''}" data-tier-focus="${k}" style="--c:var(--warn)" ${pinAttr(`${k} TIER GATE`,hot?'ARMED':'HELD',
-          hot?`${c.hits[k].length} armed hit(s) inside the ${TIERS[k].windowHours}h window.\nNewest ${fmtAge(c.hits[k][0].timestamp)} ago: ${c.hits[k][0].title}`
+        return `<button class="triad ${hot?'hot':''}" data-tier-focus="${k}" style="--c:var(--warn)" ${pinAttr(`${k} TIER GATE`,hot?'MATCH':'NO MATCH',
+          hot?`${c.hits[k].length} rule match(es) inside the ${TIERS[k].windowHours}h window.\nNewest ${fmtAge(c.hits[k][0].timestamp)} ago: ${c.hits[k][0].title}`
              :`No compound hit inside ${TIERS[k].windowHours}h.\n${c.win[k].length} item(s) observed.`)}><i class="led"></i>${k} ${hot?c.hits[k].length:'—'}</button>`;
       }).join('')}
     </div>
-    <div class="gate-seq" ${pinAttr('CASCADE FIRE ORDER','Sequence of newest armed hit per tier',
+    <div class="gate-seq" ${pinAttr('CASCADE FIRE ORDER','Sequence of newest rule match per tier',
       'Read left to right. L1 → L2 → L3 means the escalation is descending from theatre logistics, through grid cyber, into your local grid — the exact cascade this console watches for.')}>
       <span class="lbl">SEQ</span>
       ${TIER_ORDER.map((k,i)=>{
@@ -1793,7 +1809,7 @@ function renderGate(c){
     </div>
     <div class="gate-line">
       ${TIER_ORDER.filter(k=>c.hits[k].length).map(k=>`<span style="--c:${TIERS[k].color}">${k} <b>${esc(c.hits[k][0].crisisToken||'ARMED')}</b></span>`).join('')||
-        '<span style="--c:var(--line3)">NO ARMED CRISIS TOKENS</span>'}
+        '<span style="--c:var(--line3)">NO MATCHED CRISIS TERMS</span>'}
     </div>`;
 }
 
@@ -1812,8 +1828,8 @@ function renderWindows(c){
     const st=state.feedStatus[k]||'idle';
     const stTxt=st==='ok'?'SOURCE VERIFIED':st==='fail'?'SOURCE FAILED':st==='pending'?'HANDSHAKING':'NO SYNC ATTEMPTED';
     return `<div class="win-row" style="--c:${color}" ${pinAttr(`WINDOW ${k} · ${stTxt}`,`${t.sourceLabel} · ${t.windowHours}h rolling gate`,
-      hits.length?`${hits.length} armed hit(s).\nOldest hit leaves the window in ${label}.\nAfter that the gate closes unless fresh triggers land.`
-      :`No armed hits inside ${t.windowHours}h.\n${c.win[k].length} item(s) observed in window.`)}>
+      hits.length?`${hits.length} rule match(es).\nOldest hit leaves the window in ${label}.\nAfter that the gate closes unless fresh triggers land.`
+      :`No rule matches inside ${t.windowHours}h.\n${c.win[k].length} item(s) observed in window.`)}>
       <i class="src-dot ${st}" title="${stTxt}"></i><b>${k}</b><span class="v">${t.windowHours}H</span>
       <span class="win-bar"><i style="width:${pct}%;--c:${color}"></i></span>
       <span class="v" style="color:${hits.length?'var(--warn)':'var(--ink3)'}">${label}</span>
@@ -1826,7 +1842,7 @@ function renderWindows(c){
 function renderConsole(c){
   const drill=state.items.filter(i=>i.isDrill).length;
   $('#toggles').innerHTML=`
-    <button class="tg ${state.showRoutine?'on':''}" data-act="toggle-routine" ${pinAttr('ROUTINE TRAFFIC','Show / hide non-crisis items','Non-armed items are context. Hide them when you only want the gates.')}><span>Routine</span><span class="sw"></span></button>
+    <button class="tg ${state.showRoutine?'on':''}" data-act="toggle-routine" ${pinAttr('ROUTINE TRAFFIC','Show / hide non-crisis items','Non-matched items are context. Hide them when you only want the gates.')}><span>Routine</span><span class="sw"></span></button>
     <button class="tg ${state.safeImages?'on':''}" data-act="toggle-images" ${pinAttr('SANITISED IMAGES','Remote imagery guard','Loads HTTPS imagery with no-referrer. Off = pure text mode, procedural sensor frames only.')}><span>Imagery</span><span class="sw"></span></button>
     <button class="tg ${state.sfx?'on':''}" data-act="toggle-sfx" ${pinAttr('INTERFACE AUDIO','Tactical cues','Optional WebAudio blips on selection, sync and escalation. Off by default.')}><span>Audio</span><span class="sw"></span></button>
     <button class="tg ${state.drillOn?'on':''}" data-act="drill-toggle" ${pinAttr('DRILL DATA','On = drill pool · Off = live only','Drill items are kept in the archive either way. Off simply hides them and re-reads the gate from live items only.')}><span>Drill</span><span class="sw"></span></button>`;
@@ -1919,7 +1935,7 @@ function itemHtml(item){
           <span class="chip tier" style="--c:${t.color}">${item.tier}</span>
           <span class="chip ${item.sev==='CRIT'?'crit':item.sev==='WATCH'?'watch':'rout'}">${sev.label}</span>
           ${state.lastVisit&&item.timestamp>state.lastVisit?'<span class="chip new">NEW</span>':''}
-          ${item.isDrill?'<span class="chip drill">DRILL</span>':''}
+          ${item.isDrill?'<span class="chip drill">FICTION · DRILL</span>':''}
           <span class="item-time">${item.dateKey} ${hhmm(item.timestamp)} · ${fmtAge(item.timestamp)} AGO</span>
         </div>
         <h3 class="item-title">${esc(item.title)}</h3>
@@ -1946,7 +1962,7 @@ function drawerHtml(item){
         <button class="act" data-act="dossier">Open dossier ▸</button>
         <button class="act ${state.brief.includes(item.id)?'on':''}" data-act="brief">${state.brief.includes(item.id)?'✓ Brief':'+ Brief'}</button>
         <button class="act" data-act="copy">Copy link</button>
-        <a class="act" href="${esc(item.link)}" target="_blank" rel="noopener noreferrer">Source ↗</a>
+        ${item.isDrill?'':`<button class="act" data-act="visit-source">Source ↗</button>`}
       </div>
     </div>`;
 }
@@ -1967,7 +1983,7 @@ function groupHtml(tier,items,allHits){
       <span class="gh-id"><i class="b"></i>${esc(t.code)}</span>
       <span class="gh-mid"><span class="gh-name">${esc(t.name)}</span><span class="gh-sub">${t.windowHours}H GATE</span></span>
       <span class="gh-right">
-        <span class="gh-cnt"><b>${armed?allHits:0}</b> ARMED · ${items.length} SHOWN</span>
+        <span class="gh-cnt"><b>${armed?allHits:0}</b> MATCHES · ${items.length} SHOWN</span>
         <i class="gh-chev"></i>
       </span>
     </button>
@@ -2010,7 +2026,7 @@ function renderStream(c){
       html+=`<div class="group open" style="--c:var(--warn)"><div class="group-hd" style="cursor:default">
         <span class="gh-id"><i class="b"></i>DAY ${esc(state.selectedDate)}</span>
         <span class="gh-mid"><span class="gh-name">ARCHIVE SLICE</span><span class="gh-sub">${sel.length} ITEMS</span></span>
-        <span class="gh-right"><span class="gh-cnt"><b>${lvl}</b> ARMED</span></span>
+        <span class="gh-right"><span class="gh-cnt"><b>${lvl}</b> MATCHES</span></span>
       </div><div class="group-body" style="grid-template-rows:1fr"><div class="group-inner">
         ${pool.length?v.sorted.map(itemHtml).join(''):'<div class="group-empty">No items on this date</div>'}
       </div></div></div>`;
@@ -2097,12 +2113,13 @@ function renderDossier(){
   const body=$('#dossierBody'), trail=$('#trail');
   lastScroll.dossier=body.scrollTop;
   const item=state.items.find(i=>i.id===state.selectedId);
+  body.classList.toggle('fiction-off',!!(item&&item.isDrill&&!state.drillOn));
   if(!item){
     body.innerHTML=emptyDossier();
     trail.textContent='IDLE';
     return;
   }
-  const t=TIERS[item.tier], sev=SEV_META[item.sev];
+  const t=TIERS[item.tier], sev=(item.isDrill&&!state.drillOn)?{...SEV_META[item.sev],color:'var(--ink3)'}:SEV_META[item.sev];
   const inBrief=state.brief.includes(item.id);
   const paras=splitParas(item.bodyText);
   const img = (state.safeImages && item.imageUrl) ? item.imageUrl : artFor(item);
@@ -2111,11 +2128,12 @@ function renderDossier(){
   trail.innerHTML=`<b>${esc(item.tier)}</b> / ${esc(state.mode)} / ${esc(item.dateKey)} / ${idx>=0?`${idx+1} OF ${list.length}`:'—'}`;
 
   body.innerHTML=`
-    <div class="dos-head">
+    <div class="dos-head ${item.isDrill&&!state.drillOn?'fiction-off':''}">
+      ${item.isDrill?`<div class="fiction-banner">${state.drillOn?'DRILL DATA · FICTIONAL EXERCISE':'FICTIONAL DRILL ITEM · NOT A REAL EVENT'}<small>${state.drillOn?'Used to test the dashboard':'Drill is off. This retained item is for testing only and is excluded from live calculations.'}</small></div>`:''}
       <div class="dos-kicker">
         <span class="chip tier" style="--c:${t.color}">${esc(t.code)}</span>
         <span class="chip ${item.sev==='CRIT'?'crit':item.sev==='WATCH'?'watch':'rout'}">${sev.label}</span>
-        ${item.isDrill?'<span class="chip drill">DRILL ITEM</span>':''}
+        ${item.isDrill?'<span class="chip drill">FICTION · DRILL</span>':''}
         <span class="item-time">${esc(item.dateKey)} ${hhmm(item.timestamp)}</span>
       </div>
       <h2 class="dos-title">${esc(item.title)}</h2>
@@ -2123,7 +2141,7 @@ function renderDossier(){
 
     <div class="dos-meta">
       <div class="dm"><div class="k">Source</div><div class="v">${esc(t.sourceLabel)}</div></div>
-      <div class="dm"><div class="k">Gate</div><div class="v ${item.triggered?'bad':'warn'}">${item.triggered?'ARMED':'HELD'}</div></div>
+      <div class="dm"><div class="k">Rule result</div><div class="v ${item.isDrill&&!state.drillOn?'':item.triggered?'bad':'warn'}">${item.isDrill&&!state.drillOn?'FICTION · EXCLUDED':item.triggered?'MATCH':'NO MATCH'}</div></div>
       <div class="dm"><div class="k">Index</div><div class="v acc">${item.score}/100</div></div>
       <div class="dm"><div class="k">Published</div><div class="v">${hhmm(item.timestamp)} · ${fmtAge(item.timestamp)} AGO</div></div>
       <div class="dm"><div class="k">Window</div><div class="v">${t.windowHours}H</div></div>
@@ -2152,7 +2170,7 @@ function renderDossier(){
 
     <div class="dos-acts">
       <button class="act" data-act="read-source">Read full source</button>
-      <button class="act" data-act="visit-source">Visit original ↗</button>
+      ${item.isDrill?'':`<button class="act" data-act="visit-source">Visit original ↗</button>`}
       <button class="act" data-act="copy">Copy link</button>
       <button class="act ${inBrief?'on':''}" data-act="brief">${inBrief?'✓ In brief':'+ Add to brief'}</button>
       <button class="act" data-act="pin-selected">Pin dossier</button>
@@ -2163,7 +2181,7 @@ function renderDossier(){
       if(!rel.length)return '';
       return `<div class="dos-sec">Correlated signals · last 48h</div>
       <div class="rel-list">${rel.map(r=>`<button class="rel" data-rel="${esc(r.id)}" style="--sc:${SEV_META[r.sev].color}">
-        <span class="chip tier" style="--c:${TIERS[r.tier].color}">${r.tier}</span>
+        <span class="chip tier" style="--c:${TIERS[r.tier].color}">${r.tier}</span>${r.isDrill?'<span class="chip drill">FICTION</span>':''}
         <span class="rel-t">${esc(r.title)}</span>
         <span class="rel-a">${fmtAge(r.timestamp)}</span>
       </button>`).join('')}</div>`;})()}
@@ -2176,7 +2194,7 @@ function renderDossier(){
 }
 function correlated(item){
   const now=Date.now();
-  return state.items
+  return activeItems()
     .filter(i=>i.id!==item.id&&i.triggered&&(now-i.timestamp)<=48*3600000)
     .sort((a,b)=>(a.tier===item.tier?1:0)-(b.tier===item.tier?1:0)||b.timestamp-a.timestamp)
     .slice(0,4);
@@ -2349,7 +2367,7 @@ function toggleRoutine(){
   state.showRoutine=!state.showRoutine;
   state.prefs.showRoutine=state.showRoutine;
   savePrefs(); renderAll();
-  toast('ROUTINE TRAFFIC',state.showRoutine?'Routine and filtered items are visible.':'Showing armed hits only.','ok');
+  toast('ROUTINE TRAFFIC',state.showRoutine?'Routine and filtered items are visible.':'Showing rule matches only.','ok');
 }
 function toggleImages(){
   state.safeImages=!state.safeImages;
@@ -2390,6 +2408,7 @@ function toggleDrill(){
   state.drillOn=!state.drillOn;
   if(state.drillOn&&!state.items.some(i=>i.isDrill)){
     seedDrillArchive();                 // first activation builds the drill world
+    saveArchive();
   }
   if(state.drillOn)state.mode='LADDER';
   bump();
@@ -2425,7 +2444,7 @@ function toggleAuto(){
     btn.textContent='AUTO '+state.remaining+'S';
   },1000);
   state.autoTimer=setInterval(()=>{ if(!document.hidden)syncNow(true); },sec*1000);
-  toast('AUTO-SYNC ARMED',`Polling every ${sec}s while the tab is visible.`,'ok');
+  toast('AUTO-SYNC ON',`Polling every ${sec}s while the tab is visible.`,'ok');
   syncNow(true);
 }
 async function copyText(txt){
@@ -2476,24 +2495,24 @@ function buildSitrep(){
   L.push('');
   L.push('## TIER STATUS');
   L.push('');
-  L.push('| Tier | Source | Window | Armed hits | Newest hit |');
+  L.push('| Tier | Source | Window | Rule matches | Newest hit |');
   L.push('|---|---|---|---|---|');
   TIER_ORDER.forEach(k=>{
     const h=c.hits[k];
     L.push(`| ${TIERS[k].code} | ${TIERS[k].sourceLabel} | ${TIERS[k].windowHours}h | ${h.length} | ${h.length?h[0].title.replace(/\|/g,'/'):'—'} |`);
   });
   L.push('');
-  L.push('## PRIORITY ITEMS'+(briefItems.length?' (from brief tray)':' (top armed hits)'));
+  L.push('## PRIORITY ITEMS'+(briefItems.length?' (from brief tray)':' (top rule matches)'));
   L.push('');
   if(!items.length){
-    L.push('_No armed items. All gates held across the current windows._');
+    L.push('_No matched items. All gates held across the current windows._');
   }
   items.forEach((it,i)=>{
-    L.push(`### ${i+1}. [${it.tier}] ${it.title}`);
+    L.push(`### ${i+1}. [${it.tier}] ${it.isDrill?"[FICTIONAL DRILL — NOT A REAL EVENT] ":""}${it.title}`);
     L.push('');
     L.push(`- **Published:** ${it.dateKey} ${hhmm(it.timestamp)} (${fmtAge(it.timestamp)} ago)`);
     L.push(`- **Verdict:** ${it.reason}`);
-    L.push(`- **Gate:** ${it.verdict} · index ${it.score}/100`);
+    L.push(`- **Gate:** ${it.isDrill&&!state.drillOn?"FICTION · NOT COUNTED (DRILL OFF)":it.verdict} · index ${it.score}/100`);
     L.push(`- **Source:** ${it.link}`);
     const ex=(it.bodyText||'').replace(/\s+/g,' ').slice(0,260);
     if(ex)L.push(`- **Excerpt:** ${ex}${it.bodyText.length>260?'…':''}`);
@@ -2532,9 +2551,9 @@ function openBrief(){
     <div class="msec">
       <h3>Collected items · ${items.length}</h3>
       ${items.length?`<div style="display:flex;flex-direction:column;gap:5px">
-        ${items.map(it=>`<div class="mitem" style="display:flex;gap:8px;align-items:flex-start">
+        ${items.map(it=>`<div class="mitem ${it.isDrill&&!state.drillOn?'fiction-off':''}" style="display:flex;gap:8px;align-items:flex-start">
           <span class="chip tier" style="--c:${TIERS[it.tier].color}">${it.tier}</span>
-          <span style="flex:1;min-width:0">${esc(it.title)}<br><span style="color:var(--ink3);font-size:8.5px">${esc(it.dateKey)} ${hhmm(it.timestamp)} · ${esc(it.verdict)}</span></span>
+          <span style="flex:1;min-width:0">${it.isDrill?'<b class="fiction-brief">FICTIONAL DRILL · NOT A REAL EVENT</b><br>':''}${esc(it.title)}<br><span style="color:var(--ink3);font-size:8.5px">${esc(it.dateKey)} ${hhmm(it.timestamp)} · ${it.isDrill&&!state.drillOn?'FICTION · NOT COUNTED':esc(it.verdict)}</span></span>
           <button class="act warn" data-act="brief-remove" data-id="${esc(it.id)}">Remove</button>
         </div>`).join('')}
       </div>`:`<div class="mitem">Empty. Open a dossier and choose <b>Add to brief</b> to collect items for export.</div>`}
@@ -2569,7 +2588,7 @@ function openHelp(){
       <div class="mgrid">
         <div class="mitem"><b>Cascade open</b>Click a tier in the ladder to fold its feed in the stream. Click any item and it cascades open in place — the dossier fills on the right.</div>
         <div class="mitem"><b>Waterfall</b>Each column is a day of the last 60. Bars fall from the top rail; warmth and depth = compound severity. Click a column to slice that day.</div>
-        <div class="mitem"><b>Gate maths</b>Target + crisis = armed. Only armed hits inside a tier's window count. Windows: L1 48h, L2 24h, L3 12h.</div>
+        <div class="mitem"><b>Gate maths</b>MATCH means a target and a crisis term appeared in the same item. A matched item counts toward that tier only while it remains inside its rolling window. HELD means no qualifying match. These are keyword rules, not proof of a real event. Windows: L1 48h, L2 24h, L3 12h.</div>
         <div class="mitem"><b>Tactical pin</b>Hold (or right-click) almost anything to pin its telemetry to the pointer with a callout line.</div>
         <div class="mitem"><b>Brief & SITREP</b>Collect dossiers in the brief tray, then export a markdown situation report.</div>
         <div class="mitem"><b>Source health</b>The dot beside each sensor window is live: green = source verified, red = last attempt failed, amber = handshaking. Hover it for detail.</div>
@@ -2607,7 +2626,7 @@ function openHelp(){
     <div class="msec">
       <h3>Signal language</h3>
       <div class="sigrow"><span class="sigdot" style="background:var(--ok)"></span><b>GREEN</b> Nominal. Every tier held, 3/3 sources verified, network up.</div>
-      <div class="sigrow"><span class="sigdot" style="background:var(--warn)"></span><b>AMBER</b> One tier armed, or some feeds degraded. Still readable, worth watching.</div>
+      <div class="sigrow"><span class="sigdot" style="background:var(--warn)"></span><b>AMBER</b> One tier has a rule match, or some feeds are degraded. Still readable, worth watching.</div>
       <div class="sigrow"><span class="sigdot" style="background:var(--crit)"></span><b>RED · FLASHING</b> Compound escalation confirmed by live sources. The console's highest state.</div>
       <div class="sigrow"><span class="sigdot" style="background:var(--purple)"></span><b>PURPLE · FLASHING</b> Comms fault — the NIC or every source is unreachable.</div>
       <div class="sigrow"><span class="sigdot sigdual"></span><b>RED ⇄ PURPLE</b> Evidence exists but no live source can confirm it. Treat as unverified.</div>
@@ -2641,7 +2660,7 @@ function doAct(name,id,el){
     case 'download-sitrep': downloadSitrep(); break;
     case 'brief-clear': state.brief=[]; savePrefs(); renderBriefCount(); renderDossier(); openBrief(); toast('BRIEF TRAY','Cleared.','ok'); break;
     case 'brief-remove': state.brief=state.brief.filter(x=>x!==el.dataset.id); savePrefs(); renderBriefCount(); openBrief(); break;
-    case 'dossier': if(id)selectItem(id,false); $('#dossierPanel').animate?.([{filter:'brightness(1.6)'},{filter:'brightness(1)'}],{duration:320}); break;
+    case 'dossier': if(id)selectItem(id,false); $('#dossierPanel').scrollIntoView({behavior:'smooth',block:'start'}); $('#dossierPanel').animate?.([{filter:'brightness(1.6)'},{filter:'brightness(1)'}],{duration:320}); break;
     case 'brief': if(id)toggleBrief(id); break;
     case 'copy': {
       const it=state.items.find(i=>i.id===id);
@@ -2707,7 +2726,7 @@ function bindEvents(){
     const tf=e.target.closest('[data-tier-focus]');
     if(tf){ toggleTier(tf.dataset.tierFocus,{focus:true}); return; }
     const rel=e.target.closest('[data-rel]');
-    if(rel){ selectItem(rel.dataset.rel,false); $('#dossierBody').scrollTop=0; }
+    if(rel){ selectItem(rel.dataset.rel,false); $('#dossierBody').scrollTop=0; $('#dossierPanel').scrollIntoView({behavior:'smooth',block:'start'}); }
   });
 
   $('#streamBody').addEventListener('click', e=>{
@@ -2763,10 +2782,10 @@ function bindEvents(){
   const wf=$('#wfCols'), tip=$('#wfTip');
   wf.addEventListener('mousemove', e=>{
     const col=e.target.closest('.wf-col'); if(!col){tip.style.opacity=0;return;}
-    const d=state.items.filter(i=>i.dateKey===col.dataset.day);
+    const d=activeItems().filter(i=>i.dateKey===col.dataset.day);
     const trig=d.filter(i=>i.triggered);
     const tiers=[...new Set(trig.map(i=>i.tier))];
-    tip.innerHTML=`<b>${esc(col.dataset.day)}</b> · ${LEVELS[trig.length?(tiers.includes('L3')?(tiers.includes('L1')||tiers.includes('L2')?3:1):tiers.includes('L1')&&tiers.includes('L2')?2:1):0].label}<br>${trig.length} armed · ${d.length} items · ${tiers.join('+')||'no tier'}`;
+    tip.innerHTML=`<b>${esc(col.dataset.day)}</b> · ${LEVELS[trig.length?(tiers.includes('L3')?(tiers.includes('L1')||tiers.includes('L2')?3:1):tiers.includes('L1')&&tiers.includes('L2')?2:1):0].label}<br>${trig.length} matches · ${d.length} items · ${tiers.join('+')||'no tier'}`;
     tip.style.left=clamp(e.clientX+12,8,innerWidth-190)+'px';
     tip.style.top=clamp(e.clientY-48,70,innerHeight-40)+'px';
     tip.style.opacity=1;
@@ -2778,6 +2797,7 @@ function bindEvents(){
     tip.style.opacity=0;
     renderAll(); savePrefs(); sfx('click');
     $('#streamBody').scrollTop=0;
+    if(innerWidth<=1080)document.querySelector('.stream').scrollIntoView({behavior:'smooth',block:'start'});
   });
 
   // top controls
@@ -2887,7 +2907,7 @@ function boot(){
     ['L2 NAT-ICS · CISA','OK'],
     ['L3 REG-GRID · MISO/PJM','OK'],
     ['RECONSTRUCT 60D ARCHIVE','OK'],
-    ['COMPOUND GATE LOGIC','ARMED']
+    ['COMPOUND RULE LOGIC','READY']
   ];
   lines.forEach((l,i)=>{
     const d=document.createElement('div');
@@ -2904,36 +2924,61 @@ function boot(){
 
 /* Independent monitors: a successful fetch is not a declaration of safety. */
 const CAPS=[
- {id:'weather',label:'LOCAL WEATHER',scope:'Marion County, Indiana · active NWS alerts',url:'https://api.weather.gov/alerts/active?zone=INC097',kind:'weather'},
- {id:'space',label:'SPACE WEATHER',scope:'NOAA SWPC · national / global',url:'https://services.swpc.noaa.gov/products/alerts.json',kind:'space'},
- {id:'health',label:'HEALTH',scope:'CDC newsroom · national, not local surveillance',url:'https://tools.cdc.gov/api/v2/resources/media/132608.rss',words:/\b(outbreak|pandemic|epidemic|public health emergency)\b/i},
- {id:'food',label:'FOOD SAFETY',scope:'CDC food safety · national recalls',url:'https://tools.cdc.gov/api/v2/resources/media/316422.rss',words:/\b(recall|outbreak|salmonella|listeria|e\. coli)\b/i},
- {id:'cyber',label:'CYBER',scope:'CISA alerts · national',url:'https://us-cert.cisa.gov/ncas/alerts.xml',words:/\b(ransomware|actively exploited|critical infrastructure|cyberattack)\b/i},
- {id:'world',label:'WORLD',scope:'USNI News · national and international',url:'https://news.usni.org/feed',words:/\b(war|missile|attack|conflict|invasion)\b/i}
+ {id:'weather',short:'WX',label:'WEATHER',scope:'NWS · selected Midwest county · active alerts',url:'https://api.weather.gov/alerts/active?zone=INC097',kind:'weather',rule:'All active county alerts are shown. Severe/extreme severity or a tornado warning is REVIEW; other alerts are WATCH.'},
+ {id:'space',short:'SW',label:'SPACE',scope:'NOAA SWPC · national / global',url:'https://services.swpc.noaa.gov/products/alerts.json',kind:'space',rule:'Recent NOAA watch, warning and alert products are WATCH. G3–G5, S3–S5 or R3–R5 in a recent product is REVIEW. Products may be forecasts, not impacts in the Midwest.'},
+ {id:'health',short:'CDC',label:'HEALTH',scope:'CDC newsroom · national, not local surveillance',url:'https://tools.cdc.gov/api/v2/resources/media/132608.rss',kind:'rss',rule:'Recent outbreak, epidemic, pandemic or public-health-emergency reports are WATCH. Three or more matching reports in 24 hours are REVIEW, not confirmation of a local outbreak.',match:/\b(outbreak|pandemic|epidemic|public health emergency)\b/i},
+ {id:'food',short:'FDA',label:'FOOD',scope:'CDC food safety · national recalls',url:'https://tools.cdc.gov/api/v2/resources/media/316422.rss',kind:'rss',rule:'Recent recall, outbreak, Salmonella, Listeria or E. coli reports are WATCH. Three or more matching reports in 24 hours are REVIEW. Check products and distribution areas.',match:/\b(recall(?:ed|s|ing)?|outbreak|salmonella|listeria|e\.?\s*coli)\b/i},
+ {id:'cyber',short:'CY',label:'CYBER',scope:'CISA · national advisories',url:'https://www.cisa.gov/cybersecurity-advisories/all.xml',alternates:['https://www.cisa.gov/cybersecurity-advisories/alerts.xml'],kind:'rss',rule:'Recent ransomware, active exploitation, cyberattack, destructive malware or infrastructure outage reports are WATCH. Three or more matching reports in 24 hours are REVIEW. A vulnerability advisory is not proof of a local outage.',match:/\b(ransomware|actively exploited|active exploitation|cyberattack|cyber attack|destructive malware|operational outage)\b/i},
+ {id:'world',short:'GL',label:'WORLD',scope:'USNI News · national and international maritime reporting',url:'https://news.usni.org/feed',kind:'rss',rule:'Recent war, missile attack, invasion, hostilities or major armed conflict reports are WATCH. Three or more matching reports in 24 hours are REVIEW, not a prediction of local impact.',match:/\b(war|missile attack|missile strike|invasion|hostilities|armed conflict)\b/i}
 ];
 const CAPKEY='CASCADE_CAPSULES_V1'; let capsuleData={}; let capBusy=false;
 function initCapsules(){try{capsuleData=JSON.parse(lsGet(CAPKEY)||'{}')||{};}catch(e){capsuleData={};} renderCapsules();}
 function capStatus(c){const d=capsuleData[c.id];if(!d)return 'unknown';if(d.failed)return 'comms';if(!d.checked)return 'unknown';if(Date.now()-d.checked>6*3600000)return 'comms';return d.level||'ok';}
-function renderCapsules(){const board=$('#capsBoard');if(!board)return;board.innerHTML='<span class="caps-label">MICRO MONITORS · INDEPENDENT</span>'+CAPS.map(c=>{let st=capStatus(c);return `<button class="caps-btn" data-cap="${c.id}" aria-label="${esc(c.label)}: ${st}"><i class="caps-dot ${st}"></i>${esc(c.label)} <small>${st==='unknown'?'—':st==='comms'?'COMMS':st==='critical'?'REVIEW':st==='watch'?'WATCH':'OK'}</small></button>`}).join('');}
+function capBars(c){const d=capsuleData[c.id]||{}, history=d.observations||{};return Array.from({length:10},(_,n)=>{let dt=new Date();dt.setHours(12,0,0,0);dt.setDate(dt.getDate()-(9-n));let key=dayKey(dt),st=history[key]||'unknown';return `<i class="cap-bar ${esc(st)}" title="${esc(key)}: ${esc(st==='unknown'?'no observation':st)}"></i>`}).join('');}
+function renderCapsules(){const board=$('#capsBoard');if(!board)return;board.innerHTML='<span class="caps-label">MICRO MONITORS<small>10 DAYS · independent</small></span>'+CAPS.map(c=>{let st=capStatus(c);return `<button class="caps-btn" data-cap="${c.id}" aria-label="${esc(c.label)} monitor: ${st}; open details"><span class="cap-emblem">${c.short}</span><span class="cap-main"><span class="cap-top"><i class="caps-dot ${st}"></i><span class="cap-name">${c.label}</span><span class="cap-status">${st==='unknown'?'—':st==='comms'?'COMMS':st==='critical'?'REVIEW':st==='watch'?'WATCH':'OK'}</span></span><span class="cap-bars" aria-hidden="true">${capBars(c)}</span></span></button>`}).join('');}
+async function getCapRaw(url){
+ const attempts=[url];const custom=customRelayUrl(url);if(custom)attempts.push(custom);attempts.push('https://api.allorigins.win/get?url='+encodeURIComponent(url));
+ let last='No response';for(const u of attempts){try{let r=await fetchWithTimeout(u,8500);if(!r.ok)throw Error('HTTP '+r.status);let text=await r.text();if(u.includes('allorigins.win/get?')){let wrap=JSON.parse(text);text=wrap.contents||'';}return text;}catch(e){last=String(e.message||e)}}throw Error(last);
+}
+async function getCapFeed(c){
+ let errs=[];for(const url of [c.url,...(c.alternates||[])]){
+  const enc=encodeURIComponent(url);const attempts=[
+   async()=>{let r=await fetchWithTimeout(url,7500);if(!r.ok)throw Error('HTTP '+r.status);return parseXml(await r.text(),'L1')},
+   async()=>{let u=customRelayUrl(url);if(!u)throw Error('no relay');return attemptCustom(url,'L1')},
+   ()=>jsonBridge('https://api.rss2json.com/v1/api.json?rss_url='+enc,'L1',9000),
+   ()=>jsonBridge('https://feed2json.org/convert?url='+enc,'L1',9000),
+   ()=>jsonBridge('https://api.allorigins.win/get?url='+enc,'L1',9000)
+  ];
+  try{const items=await hedgedRace(attempts,900);if(items&&items.length)return {items,source:url};}catch(e){errs.push(String(e.message||e));}
+ }throw Error(errs.join('; ')||'All feed paths failed');
+}
 async function capFetch(c){
  if(c.kind==='weather'||c.kind==='space'){
-  const r=await fetchWithTimeout(c.url,9000);if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();
-  if(c.kind==='weather')return (d.features||[]).map(f=>{let p=f.properties||{};return {title:p.headline||p.event||'Weather alert',raw:p.description||'',pub:p.sent||p.effective,link:p['@id']||'https://www.weather.gov/ind/',severity:p.severity,event:p.event}});
-  if(!Array.isArray(d))throw Error('Unrecognised NOAA response');return d.map(x=>({title:(x.message||'').split('\n').find(z=>/^(WATCH|WARNING|ALERT):/i.test(z))||'NOAA space weather product',raw:x.message||'',pub:x.issue_datetime,link:'https://www.swpc.noaa.gov/products/alerts-watches-and-warnings'}));
+  const d=JSON.parse(await getCapRaw(c.url));
+  if(c.kind==='weather'){if(!Array.isArray(d.features))throw Error('Invalid NWS response');return {source:c.url,items:d.features.map(f=>{let p=f.properties||{};return {title:p.headline||p.event||'Weather alert',raw:p.description||'',pub:p.sent||p.effective,link:p['@id']||'https://www.weather.gov/ind/',severity:p.severity,event:p.event}})};}
+  if(!Array.isArray(d))throw Error('Invalid NOAA response');return {source:c.url,items:d.map(x=>({title:(x.message||'').split('\n').find(z=>/\b(WATCH|WARNING|ALERT):/i.test(z))||'NOAA space weather product',raw:x.message||'',pub:String(x.issue_datetime||'').replace(' ','T')+'Z',link:'https://www.swpc.noaa.gov/products/alerts-watches-and-warnings'}))};
  }
- const enc=encodeURIComponent(c.url);return hedgedRace([()=>jsonBridge('https://api.rss2json.com/v1/api.json?rss_url='+enc,'L1'),()=>jsonBridge('https://feed2json.org/convert?url='+enc,'L1')],1400);
+ return getCapFeed(c);
 }
-async function refreshCapsules(){if(capBusy)return;capBusy=true;await Promise.all(CAPS.map(async c=>{let old=capsuleData[c.id]||{};try{
- const fetched=await capFetch(c), now=Date.now();let rows=fetched.map(x=>{let ts=Date.parse(x.pub);return {title:String(x.title||'').slice(0,500),summary:String(x.raw||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(0,1200),time:Number.isFinite(ts)?ts:now,link:String(x.link||''),severity:x.severity||'',event:x.event||''};}).filter(x=>x.title&&x.time<=now+86400000&&x.time>=now-60*86400000);
- const map=new Map((old.entries||[]).concat(rows).map(x=>[(x.link||x.title)+'|'+x.time,x]));const entries=[...map.values()].filter(x=>x.time>=now-60*86400000).sort((a,b)=>b.time-a.time).slice(0,600);
- let recent=rows.filter(x=>now-x.time<24*3600000), matches=recent.filter(x=>c.kind==='weather'?true:c.kind==='space'?/\b(warning|watch|alert)\b/i.test(x.title):c.words.test(x.title+' '+x.summary));
- let level='ok';if(c.kind==='weather'){if(matches.some(x=>/extreme|severe/i.test(x.severity)||/tornado warning/i.test(x.event)))level='critical';else if(matches.length)level='watch';}else if(matches.length>=3)level='critical';else if(matches.length)level='watch';
- capsuleData[c.id]={checked:now,failed:false,entries,level,count:matches.length};
- }catch(e){capsuleData[c.id]={...old,failed:true,error:String(e.message||e),entries:old.entries||[]};}renderCapsules();}));try{localStorage.setItem(CAPKEY,JSON.stringify(capsuleData));}catch(e){}capBusy=false;}
-function openCapsule(id){let c=CAPS.find(x=>x.id===id);if(!c)return;let d=capsuleData[id]||{}, st=capStatus(c), entries=d.entries||[];
- openModal(c.label+' · MONITOR',`<p>${esc(c.scope)}</p><p><b>Status: ${esc(st.toUpperCase())}</b> · ${d.checked?'Last success '+esc(new Date(d.checked).toLocaleString()):'No successful check yet'}${d.failed?' · COMMS: latest request failed':''}</p><p>Green means the source answered and no recent rule matched—not that conditions are safe. Yellow is a keyword match; flashing red is ${c.kind==='weather'?'a severe/extreme NWS alert':'three or more matched items in 24 hours, not a verified emergency'}. National items may not affect Beech Grove. Check official alerts; do not rely on this as an emergency notification system.</p><p>History: up to 60 days of items collected on this device; feeds may supply less. ${entries.length} stored.</p><button class="act" id="capRefresh">Refresh all monitors</button><div>${entries.length?entries.map(x=>`<div class="caps-entry"><b>${esc(x.title)}</b><br><small>${esc(new Date(x.time).toLocaleString())}</small><p>${esc(x.summary)}</p>${safeExternal(x.link)?`<button class="act" data-out="${esc(x.link)}">Visit source ↗</button>`:''}</div>`).join(''):'No collected history yet.'}</div>`);
+function matchCap(c,x){let text=x.title+' '+x.summary;if(c.kind==='weather')return true;if(c.kind==='space')return /\b(warning|watch|alert)\b/i.test(x.title);return c.match.test(text);}
+function capLevel(c,rows,now){let recent=rows.filter(x=>x.time<=now+3600000&&now-x.time<24*3600000), matches=recent.filter(x=>matchCap(c,x));let level='ok';
+ if(c.kind==='weather'){matches=rows; if(matches.some(x=>/^(extreme|severe)$/i.test(x.severity)||/tornado warning/i.test(x.event)))level='critical';else if(matches.length)level='watch';}
+ else if(c.kind==='space'){if(matches.some(x=>/\b(?:G|S|R)[345]\b/i.test(x.title)))level='critical';else if(matches.length)level='watch';}
+ else if(matches.length>=3)level='critical';else if(matches.length)level='watch';
+ return {level,count:matches.length};
+}
+async function refreshCapsules(){if(capBusy)return;capBusy=true;await Promise.all(CAPS.map(async c=>{let old=capsuleData[c.id]||{}, now=Date.now(), result;
+ try{let fetched=await capFetch(c);let rows=fetched.items.map(x=>{let ts=Date.parse(x.pub);return {title:String(x.title||'').slice(0,500),summary:String(x.raw||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(0,1200),time:ts,link:String(x.link||''),severity:x.severity||'',event:x.event||''};}).filter(x=>x.title&&Number.isFinite(x.time)&&x.time<=now+86400000&&x.time>=now-60*86400000);
+ const map=new Map((old.entries||[]).concat(rows).map(x=>[(x.link||x.title)+'|'+x.time,x]));const entries=[...map.values()].filter(x=>x.time>=now-60*86400000).sort((a,b)=>b.time-a.time).slice(0,600);result=capLevel(c,rows,now);
+ capsuleData[c.id]={checked:now,failed:false,entries,level:result.level,count:result.count,source:fetched.source,observations:old.observations||{}};
+ }catch(e){capsuleData[c.id]={...old,failed:true,error:String(e.message||e),entries:old.entries||[],observations:old.observations||{}};}
+ let data=capsuleData[c.id], today=dayKey(new Date(now));let previous=data.observations[today];let val=data.failed?'comms':data.level;const rank={unknown:0,ok:1,comms:2,watch:3,critical:4};if(!previous||rank[val]>rank[previous])data.observations[today]=val;
+ Object.keys(data.observations).sort().slice(0,-60).forEach(k=>delete data.observations[k]);renderCapsules();}));try{localStorage.setItem(CAPKEY,JSON.stringify(capsuleData));}catch(e){}capBusy=false;}
+function openCapsule(id){let c=CAPS.find(x=>x.id===id);if(!c)return;let d=capsuleData[id]||{},st=capStatus(c),entries=d.entries||[];
+ openModal(c.label+' · MONITOR',`<div class="msec"><h3>${esc(c.scope)}</h3><div class="mitem"><b>STATUS · ${esc(st.toUpperCase())}</b>${d.checked?'Last success: '+esc(new Date(d.checked).toLocaleString()):'No successful check yet'}${d.failed?' · COMMS: latest request failed':''}<br>Source used: ${esc(d.source||c.url)}<br>Recent matching reports: ${d.count??'—'}</div><div class="mitem"><b>WHAT THIS MONITOR LOOKS FOR</b>${esc(c.rule)}<br>Green means the source answered and the rule found no recent match—not that conditions are safe. Keyword counts can include duplicates or unrelated reports. Verify dates and location with the source.</div><div class="mitem"><b>10-DAY STRIP</b>Each bar is the highest status observed during that day on this device. Grey means no check; it does not mean all clear. An observed COMMS fault is retained even if a later check succeeds, unless a higher alert was observed. History is not continuous monitoring.</div><p>Up to 60 days of locally collected reports; the feed may provide less. ${entries.length} stored. Weather status uses only currently active alerts; older entries are history, not necessarily active.</p><button class="act" id="capRefresh">Refresh all monitors</button></div><div>${entries.length?entries.map(x=>`<div class="caps-entry"><b>${esc(x.title)}</b><br><small>${esc(new Date(x.time).toLocaleString())} · ${matchCap(c,x)?'RULE MATCH':'CONTEXT'}</small><p>${esc(x.summary)}</p>${safeExternal(x.link)?`<button class="act" data-out="${esc(x.link)}">Visit source ↗</button>`:''}</div>`).join(''):'No collected history yet.'}</div>`);
  $('#capRefresh').onclick=async()=>{await refreshCapsules();openCapsule(id)};
 }
+
 function safeExternal(u){try{const x=new URL(u);return x.protocol==='https:'||x.protocol==='http:'}catch(e){return false}}
 function confirmExternal(url){if(!safeExternal(url)){toast('SOURCE','No valid external link for this item.','warn');return;}if(confirm('Leave Cascade and open this external link in a new tab?\n\n'+url))window.open(url,'_blank','noopener,noreferrer');}
 function sourceContent(html,base){
@@ -2952,7 +2997,7 @@ document.addEventListener('click',e=>{const cap=e.target.closest('[data-cap]');i
 function init(){
   loadPrefs(); deriveFlags();
   const had=loadArchive();
-  if(!had){ seedDrillArchive(); saveArchive(); }
+  if(!had || !state.items.some(i=>i.isDrill)){ seedDrillArchive(); saveArchive(); }
   state.openId=null;
   $('#btnSound').textContent = state.sfx?'♪ ON':'♪ OFF';
   $('#btnSound').classList.toggle('on',state.sfx);
@@ -2969,5 +3014,5 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else init();
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5584d909d0fb33f',t:'MTc5Mzg0NDQyNg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5584d909d0fb33f',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
