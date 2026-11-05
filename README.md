@@ -4,7 +4,7 @@
 
 **Cascade Ops** is a single-file, browser-based monitoring dashboard for following infrastructure-related news, examining the evidence behind a signal, and looking back through a 60-day view. It combines a three-tier escalation model with independent micro monitors for weather, space weather, health, food safety, cyber, and world news.
 
-Built with Beech Grove, Indiana in mind. Designed to be explored, not blindly trusted.
+Built with the Midwest in mind. Designed to be explored, not blindly trusted.
 
 > **Important:** This is an experimental situational-awareness tool—not an emergency alert system, outage detector, forecasting service, or substitute for official instructions. Its keyword rules can miss important events and flag unrelated stories. A green indicator does **not** guarantee that your family, neighborhood, grid, or communications are safe. Use official alerts and local authorities for decisions that affect safety.
 
