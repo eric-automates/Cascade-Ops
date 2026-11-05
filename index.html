@@ -743,6 +743,9 @@ body[data-level="fault"] .canary .led{background:var(--purple);box-shadow:0 0 8p
 @keyframes geoDrop{from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:translateY(0)}}@keyframes geoScan{0%{opacity:.8;transform:scale(.1)}100%{opacity:0;transform:scale(2.2)}}
 @media(prefers-reduced-motion:reduce){.geo-stage.animate .geo-drop,.geo-stage.animate .geo-ring{animation:none}.geo-stage.animate .geo-ring{opacity:.5}}
 
+
+.zip-welcome{position:fixed;z-index:70;width:min(284px,calc(100vw - 24px));padding:12px;background:rgba(8,20,27,.98);border:1px solid var(--line3);box-shadow:0 14px 45px rgba(0,0,0,.55);border-radius:3px;color:var(--ink);font-size:11px;line-height:1.55}.zip-welcome:before{content:"";position:absolute;top:-6px;left:24px;width:10px;height:10px;transform:rotate(45deg);border-left:1px solid var(--line3);border-top:1px solid var(--line3);background:#08141b}.zip-welcome strong{display:block;font-size:10px;letter-spacing:.11em;color:var(--ink);margin-bottom:5px}.zip-welcome p{color:var(--ink2);margin:0 0 8px}.zip-welcome .welcome-actions{display:flex;gap:6px;flex-wrap:wrap}.zip-welcome .act{font-size:9px;min-height:38px;padding:7px 10px}
+
 </style>
 </head>
 <body data-level="0">
@@ -3017,7 +3020,7 @@ async function readSource(id){let item=state.items.find(i=>i.id===id),box=$('#so
  try{let html;try{let r=await fetchWithTimeout(item.link,8000);if(!r.ok)throw Error('unavailable');html=await r.text();}catch(e){let r=await fetchWithTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(item.link),10000);if(!r.ok)throw Error('relay unavailable');let d=await r.json();html=d.contents||'';}
  if(state.selectedId!==id)return;let content=sourceContent(html,item.link);if(content.textContent.trim().length<100)throw Error('No readable article text returned');box.innerHTML='<div class="dos-sec">Original source · extracted text</div><p>Publisher text, cleaned for reading. Extraction may omit content, links, tables or paywalled material; verify with original.</p><div class="source-reader"></div>';box.querySelector('.source-reader').appendChild(content);
  }catch(e){if(state.selectedId!==id)return;box.innerHTML='<div class="source-reader">Could not retrieve the original article. The publisher or relay may block access, require a subscription, or the network may be unavailable. The feed text above is still available; use Visit original to view the publisher page.</div>';}}
-document.addEventListener('click',e=>{if(e.target.closest('#btnLocation')){openLocation();return;}const cap=e.target.closest('[data-cap]');if(cap){openCapsule(cap.dataset.cap);return;}const out=e.target.closest('[data-out]');if(out){confirmExternal(out.dataset.out);return;}const a=e.target.closest('#sourceReader a');if(a){e.preventDefault();confirmExternal(a.href);}});
+document.addEventListener('click',e=>{if(e.target.closest('#btnLocation')){dismissLocationNotice();openLocation();return;}const cap=e.target.closest('[data-cap]');if(cap){openCapsule(cap.dataset.cap);return;}const out=e.target.closest('[data-out]');if(out){confirmExternal(out.dataset.out);return;}const a=e.target.closest('#sourceReader a');if(a){e.preventDefault();confirmExternal(a.href);}});
 
 /* Archive search is a local index, never a claim to reconstruct missing feeds. */
 function openHistory(){
@@ -3062,7 +3065,8 @@ function installPinCoverage(){
 
 /* ZIP is an approximate point; the map is an illustration, not live radar. */
 const LOCATION_KEY='CASCADE_LOCATION_V1';
-const DEFAULT_LOCATION={zip:'46107',lat:39.7154,lon:-86.0933};
+const DEFAULT_LOCATION={zip:'46204',lat:39.7720,lon:-86.1535};
+const LOCATION_NOTICE_KEY='CASCADE_LOCATION_NOTICE_V1';
 let selectedLocation={...DEFAULT_LOCATION},locationEpoch=0;
 function weatherUrl(loc){return 'https://api.weather.gov/alerts/active?point='+loc.lat.toFixed(4)+','+loc.lon.toFixed(4);}
 function loadLocation(){try{const v=JSON.parse(lsGet(LOCATION_KEY)||'null');if(v&&/^\d{5}$/.test(v.zip)&&Number.isFinite(v.lat)&&Number.isFinite(v.lon)&&Math.abs(v.lat)<=90&&Math.abs(v.lon)<=180)selectedLocation=v;}catch(e){}}
@@ -3072,7 +3076,7 @@ function mapMarkup(loc,animate){let x=(loc.lon+180)*2,y=(90-loc.lat)*2;
  return `<div class="geo-stage ${animate?'animate':''}" role="img" aria-label="Approximate map location for ZIP ${esc(loc.zip)}"><svg viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><g class="geo-grid">${grid}</g><path class="geo-land" d="${WORLD_LAND}"/><g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle class="geo-ring" r="16"/><circle class="geo-ring r2" r="16"/><g class="geo-drop"><path class="geo-pin" d="M0 0C-2 -4 -7 -8 -7 -13a7 7 0 1 1 14 0C7 -8 2 -4 0 0Z"/><circle cx="0" cy="-13" r="2.2" fill="#17303c"/></g></g></svg><div class="geo-caption">⌖ ZIP ${esc(loc.zip)}<small>APPROXIMATE POINT · ANIMATED ILLUSTRATION, NOT LIVE RADAR</small></div></div>`;
 }
 function openLocation(){
- openModal('LOCATION · ZIP',`<p class="zip-note">Choose a five-digit ZIP for the weather monitor. The map shows an approximate ZIP point, not your address; alerts elsewhere in that ZIP may be missed. The other monitors and the fixed Midwest grid feed are broad-area and do not become local by changing this setting.</p><div id="geoMap">${mapMarkup(selectedLocation,false)}</div><form id="zipForm" class="zip-form"><label for="zipInput">ZIP CODE<input id="zipInput" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" value="${esc(selectedLocation.zip)}" required></label><button class="act" id="zipSave" type="submit">SET LOCATION ⌖</button></form><div class="zip-error" id="zipError" role="status" aria-live="polite"></div><p class="zip-note">The ZIP is sent to a public lookup service. The resulting coordinates are sent to the weather service and may pass through a configured or public relay. The saved setting is stored locally when browser storage is available.</p>`);
+ openModal('LOCATION · ZIP',`<p class="zip-note">The app runs in your browser and keeps its archive locally when storage is available. A network connection is needed to look up a new ZIP and check weather and other feeds. Choose a five-digit ZIP for the weather monitor. The map shows an approximate ZIP point, not your address; alerts elsewhere in that ZIP may be missed. The other monitors and the fixed Midwest grid feed are broad-area and do not become local by changing this setting.</p><div id="geoMap">${mapMarkup(selectedLocation,false)}</div><form id="zipForm" class="zip-form"><label for="zipInput">ZIP CODE<input id="zipInput" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" placeholder="Enter new ZIP" aria-describedby="zipCurrent" required></label><button class="act" id="zipSave" type="submit">SET LOCATION ⌖</button></form><div class="zip-error" id="zipError" role="status" aria-live="polite"></div><p id="zipCurrent" class="zip-note">Current ZIP: ${esc(selectedLocation.zip)}. To keep it, close this window.</p><p class="zip-note">The ZIP is sent to a public lookup service. The resulting coordinates are sent to the weather service and may pass through a configured or public relay. The saved setting is stored locally when browser storage is available.</p>`);
  const form=$('#zipForm'),input=$('#zipInput'),btn=$('#zipSave'),err=$('#zipError');
  form.addEventListener('submit',async e=>{e.preventDefault();let zip=input.value.trim();if(!/^\d{5}$/.test(zip)){err.textContent='Enter exactly five digits.';return;}btn.disabled=true;err.textContent='Finding ZIP point…';
  try{let r=await fetchWithTimeout('https://api.zippopotam.us/us/'+encodeURIComponent(zip),10000);if(r.status===404)throw Error('ZIP not found. Check the digits and try again.');if(!r.ok)throw Error('ZIP lookup is unavailable. Try again later.');let data=await r.json();let place=Array.isArray(data.places)?data.places[0]:null;let lat=Number(place?.latitude),lon=Number(place?.longitude);if(!place||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw Error('ZIP lookup did not return a usable point.');
@@ -3082,12 +3086,18 @@ function openLocation(){
  if(capsuleData.weather&&capsuleData.weather.locationZip===prior)capsuleData._weatherByZip[prior]=capsuleData.weather;
  let previous=capsuleData._weatherByZip[zip];capsuleData.weather=previous?{...previous,checked:0,failed:false,locationZip:zip}:{locationZip:zip,entries:[],observations:{}};
  try{localStorage.setItem(CAPKEY,JSON.stringify(capsuleData));}catch(e){}
- renderCapsules();$('#geoMap').innerHTML=mapMarkup(selectedLocation,true);err.textContent='ZIP '+zip+' set. Checking weather for the approximate point…';
+ renderCapsules();$('#geoMap').innerHTML=mapMarkup(selectedLocation,true);$('#zipCurrent').textContent='Current ZIP: '+zip+'.';err.textContent='ZIP '+zip+' set. Checking weather for the approximate point…';
  if(capBusy)capRefreshAgain=true;else refreshCapsules();
  setTimeout(()=>{if(document.getElementById('zipInput')===input)closeModal();},2700);
  }catch(ex){if(document.getElementById('zipInput')!==input)return;err.textContent=ex.name==='AbortError'?'ZIP lookup timed out. Your previous location is unchanged.':(ex.message||'ZIP lookup failed. Your previous location is unchanged.');btn.disabled=false;}
  });
 }
+
+
+function placeLocationNotice(){const n=document.getElementById('zipWelcome'),btn=document.getElementById('btnLocation');if(!n||!btn)return;const r=btn.getBoundingClientRect();const w=n.offsetWidth||284;const left=Math.max(8,Math.min(window.innerWidth-w-8,r.left));const top=Math.max(8,Math.min(window.innerHeight-n.offsetHeight-8,r.bottom+9));n.style.left=left+'px';n.style.top=top+'px';}
+function dismissLocationNotice(){const el=document.getElementById('zipWelcome');if(el)el.remove();try{localStorage.setItem(LOCATION_NOTICE_KEY,'1');}catch(e){ssSet(LOCATION_NOTICE_KEY,'1');}}
+function showLocationNotice(){if(lsGet(LOCATION_KEY)||lsGet(LOCATION_NOTICE_KEY)||ssGet(LOCATION_NOTICE_KEY)||document.getElementById('zipWelcome'))return;const el=document.createElement('div');el.id='zipWelcome';el.className='zip-welcome';el.setAttribute('role','note');el.innerHTML=`<strong>DEFAULT ZIP ENTERED</strong><p>ZIP ${esc(selectedLocation.zip)} is set for weather checks. Keep it, or choose your own.</p><div class="welcome-actions"><button class="act" id="zipWelcomeInfo">How it works</button><button class="act" id="zipWelcomeKeep">Keep default</button></div>`;document.body.appendChild(el);placeLocationNotice();$('#zipWelcomeInfo').onclick=()=>{dismissLocationNotice();openLocation();};$('#zipWelcomeKeep').onclick=()=>{dismissLocationNotice();toast('ZIP SET','Default ZIP retained. You can change it anytime.','ok');};}
+window.addEventListener('resize',placeLocationNotice);window.addEventListener('scroll',placeLocationNotice,{passive:true});
 
 function init(){
   loadPrefs(); deriveFlags(); loadLocation();
@@ -3100,6 +3110,7 @@ function init(){
   bindEvents();
   initCapsules();
   renderAll();
+  setTimeout(showLocationNotice,1900);
   startClock();
   boot();
   if(!navigator.onLine)setTimeout(()=>toast('OFFLINE','NIC is down — showing cached archive only.','bad'),1200);

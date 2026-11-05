@@ -37,7 +37,7 @@ The dashboard connects **signals**, not facts about causation. Even a red cascad
 ## Get moving in a minute
 
 1. Download or clone the repository and open **`index.html`** in a modern browser. No build step, account, or API key is required for the default setup.
-2. Select **ZIP** above the micro monitors, enter your five-digit ZIP, and choose **Set location**. The map animation marks the approximate point used for local weather.
+2. On first use, keep the default ZIP or select **How it works**. To change it, select **ZIP** above the micro monitors, enter your five-digit ZIP, and choose **Set location**. The map animation marks the approximate point used for local weather.
 3. Hit **SYNC** to retrieve current sources. A fresh install also attempts an initial sync automatically. Check the network and feed indicators rather than assuming it succeeded.
 4. Explore the **waterfall** and select an item to open its dossier. Use **Read full source** to try to extract the article into a more readable view, or **Visit original** to open the publisher's page.
 5. Click **HISTORY** above the stream to search collected reports by date, source, or text. **Today** and **Last year** are quick range presets.
@@ -98,7 +98,7 @@ For health, food, cyber and world, a recent keyword match is a **watch**; three 
 
 ## Set your monitoring location
 
-Use **ZIP** next to the micro monitors to change the five-digit postal code. The app looks it up with [Zippopotam.us](https://api.zippopotam.us/), saves the code and approximate coordinates locally, and checks weather coverage and active alerts for that point. The initial ZIP is **46107**; change it to your own before relying on the weather view. The map is a stylized illustration with an animated locator—not live radar. Its land shapes are derived from public-domain [Natural Earth](https://www.naturalearthdata.com/) data.
+Use **ZIP** next to the micro monitors to change the five-digit postal code. The app looks it up with [Zippopotam.us](https://api.zippopotam.us/), saves the code and approximate coordinates locally, and checks weather coverage and active alerts for that point. The initial ZIP is **46204**. On first use, a small note points to the ZIP control: keep the default or open **How it works** to choose another. The entry field starts blank; the current ZIP stays in effect until a new one is successfully saved. Change it to your own before relying on the weather view. The map is a stylized illustration with an animated locator—not live radar. The location control shows the ZIP and an approximate point, not a city or state name; source reports themselves are shown as published and may name places. Its land shapes are derived from public-domain [Natural Earth](https://www.naturalearthdata.com/) data.
 
 **Only the weather capsule currently uses the ZIP.** The L3 cascade still monitors the fixed Midwest grid keywords and source; space, health, food, cyber, and world monitors are broader feeds, not ZIP-specific services. The ZIP setting does not identify your utility, detect local power outages, or make a national report local. ZIP coordinates are approximate, and a point query may miss an alert that affects another part of the ZIP. If lookup fails, the previous location remains selected; if weather coverage or communication fails, the capsule shows a comms issue rather than an all-clear. Weather history is kept separately per selected ZIP where storage permits; changing ZIPs does not carry the previous location's weather into the new one. Earlier county-based weather history is retained separately and is not represented as a ZIP-point observation.
 
@@ -126,6 +126,8 @@ Use **ZIP** next to the micro monitors to change the five-digit postal code. The
 | `Esc` | Close overlays / clear search | `Alt` + `I` | Show pin for focused control |
 
 ## How the data gets here
+
+The interface and locally saved archive work in the browser, but the app is **not fully offline**: ZIP lookup, weather checks, feed refreshes and optional source reading require a connection. The ZIP is used to request weather alerts through an API; it does not filter every RSS feed.
 
 The application runs in your browser. Main feed sync attempts a configured custom relay first, then public feed-conversion services, with fallback relays if necessary. Public services can throttle, change, or go offline. The independent capsules try direct requests and fallback relay paths; RSS monitors also use public feed converters and, for cyber, an alternate CISA feed. A configured custom relay is also tried by the capsules. The source reader first attempts a direct fetch and may fall back to a public relay. **The source reader does not use the custom relay.** Availability can change or differ between networks, and a failed source remains visibly marked COMMS rather than falsely green.
 
