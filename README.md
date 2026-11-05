@@ -2,7 +2,7 @@
 
 ### A clearer picture when the signals start to overlap.
 
-**Cascade Ops** is a single-file, browser-based monitoring dashboard for following infrastructure-related news, examining the evidence behind a signal, and looking back through a 60-day view. It combines a three-tier escalation model with independent micro monitors for weather, space weather, health, food safety, cyber, and world news.
+**Cascade Ops** is a single-file, browser-based monitoring dashboard for following infrastructure-related news, examining the evidence behind a signal, looking back through a 60-day waterfall, and searching locally collected history by date. It combines a three-tier escalation model with independent micro monitors for weather, space weather, health, food safety, cyber, and world news.
 
 Built with the Midwest in mind. Designed to be explored, not blindly trusted.
 
@@ -37,12 +37,14 @@ The dashboard connects **signals**, not facts about causation. Even a red cascad
 ## Get moving in a minute
 
 1. Download or clone the repository and open **`index.html`** in a modern browser. No build step, account, or API key is required for the default setup.
-2. Hit **SYNC** to retrieve current sources. A fresh install also attempts an initial sync automatically. Check the network and feed indicators rather than assuming it succeeded.
-3. Explore the **waterfall** and select an item to open its dossier. Use **Read full source** to try to extract the article into a more readable view, or **Visit original** to open the publisher's page.
-4. Click a **micro monitor** to inspect its source, current rule status, and collected history.
-5. Use **DRILL** to practice. Drill data is synthetic and labelled; turn it off to hide it and read the cascade using live items only. Turning it off hides drill entries from the stream, related signals, and cascade calculations without deleting them. If a previously selected fictional dossier or a saved brief item remains visible, it is grey and prominently marked **FICTIONAL DRILL · NOT A REAL EVENT**. Exported drill items are labelled as fictional too.
+2. Select **ZIP** above the micro monitors, enter your five-digit ZIP, and choose **Set location**. The map animation marks the approximate point used for local weather.
+3. Hit **SYNC** to retrieve current sources. A fresh install also attempts an initial sync automatically. Check the network and feed indicators rather than assuming it succeeded.
+4. Explore the **waterfall** and select an item to open its dossier. Use **Read full source** to try to extract the article into a more readable view, or **Visit original** to open the publisher's page.
+5. Click **HISTORY** above the stream to search collected reports by date, source, or text. **Today** and **Last year** are quick range presets.
+6. Click a **micro monitor** to inspect its source, current rule status, and collected history.
+7. Use **DRILL** to practice. Drill data is synthetic and labelled; turn it off to hide it and read the cascade using live items only. Turning it off hides drill entries from the stream, related signals, and cascade calculations without deleting them. If a previously selected fictional dossier or a saved brief item remains visible, it is grey and prominently marked **FICTIONAL DRILL · NOT A REAL EVENT**. Exported drill items are labelled as fictional too.
 
-> On a fresh installation, DRILL is on by default. Switch it off before interpreting the cascade as live-only. A mixed live-and-drill view is still a mixed view, even if a live item is present.
+> **DRILL starts OFF on every page load**, including when it was left on during a previous session. Turn it on deliberately to rehearse. A mixed live-and-drill view is still a mixed view, even if a live item is present.
 
 ## The three-tier cascade
 
@@ -83,7 +85,7 @@ These small, independent monitors sit above the waterfall. Click any capsule for
 
 | Capsule | Source | Scope / what it watches |
 |:---|:---|:---|
-| **Local weather** | [National Weather Service](https://api.weather.gov/alerts/active?zone=INC097) | Active alerts for one selected Midwest county—not the entire Midwest. Severe/extreme alerts or a tornado warning can trigger red. The county is set by the weather source URL in `CAPS`. |
+| **Local weather** | [National Weather Service](https://api.weather.gov/alerts/active) | Active alerts for the approximate point of the selected ZIP. Severe/extreme alerts or a tornado warning can trigger red. The ZIP point is not your exact address and can miss alerts affecting other parts of the ZIP. |
 | **Space weather** | [NOAA Space Weather Prediction Center](https://services.swpc.noaa.gov/products/alerts.json) | National/global space-weather products; recent watches, warnings and alerts. G3–G5, S3–S5 or R3–R5 in a product title trigger review. |
 | **Health** | [CDC Newsroom](https://tools.cdc.gov/api/v2/resources/media/132608.rss) | National outbreak and public-health-emergency keywords—not local disease surveillance. |
 | **Food safety** | [CDC food safety feed](https://tools.cdc.gov/api/v2/resources/media/316422.rss) | National recall and foodborne-illness keywords. |
@@ -92,15 +94,24 @@ These small, independent monitors sit above the waterfall. Click any capsule for
 
 For health, food, cyber and world, a recent keyword match is a **watch**; three or more matching items in 24 hours produce a flashing red **review** indicator. Space weather uses the NOAA scale rule in its table row; weather uses the active-alert rule. This is a simple count, not confirmation of an incident, an assessment of local impact, or a prediction. A source failure or a last successful check older than six hours is shown as **COMMS**. The capsules refresh with the main sync or from their own detail window.
 
-**History has limits.** Capsule entries accumulate in this browser as the app successfully checks sources, up to 60 days and a per-capsule storage limit. The dashboard cannot reconstruct items a feed no longer provides or guarantee 60 days on a fresh install. Clearing browser data, using a different browser/device, or blocked storage can remove or prevent local history. Source updates, cancellations, and duplicate reports may not map cleanly to distinct real-world events.
+**History has limits.** Beginning with this version, stored reports can be retained for up to 366 days as the app collects them. Main-feed storage is limited to 1,400 live items; each capsule retains up to 600 entries. Browser storage limits can further restrict persistence. The dashboard cannot reconstruct older items a feed no longer provides or guarantee a full year on a fresh install. Clearing browser data, using a different browser/device, or blocked storage can remove or prevent local history. Source updates, cancellations, and duplicate reports may not map cleanly to distinct real-world events.
+
+## Set your monitoring location
+
+Use **ZIP** next to the micro monitors to change the five-digit postal code. The app looks it up with [Zippopotam.us](https://api.zippopotam.us/), saves the code and approximate coordinates locally, and checks weather coverage and active alerts for that point. The initial ZIP is **46107**; change it to your own before relying on the weather view. The map is a stylized illustration with an animated locator—not live radar. Its land shapes are derived from public-domain [Natural Earth](https://www.naturalearthdata.com/) data.
+
+**Only the weather capsule currently uses the ZIP.** The L3 cascade still monitors the fixed Midwest grid keywords and source; space, health, food, cyber, and world monitors are broader feeds, not ZIP-specific services. The ZIP setting does not identify your utility, detect local power outages, or make a national report local. ZIP coordinates are approximate, and a point query may miss an alert that affects another part of the ZIP. If lookup fails, the previous location remains selected; if weather coverage or communication fails, the capsule shows a comms issue rather than an all-clear. Weather history is kept separately per selected ZIP where storage permits; changing ZIPs does not carry the previous location's weather into the new one. Earlier county-based weather history is retained separately and is not represented as a ZIP-point observation.
 
 ## Explore the evidence
 
-- **Waterfall:** Select a day to inspect its stored items. Step through days using the arrows.
+- **Waterfall:** Select a day to inspect its stored items. Step through days using the arrows. The waterfall itself remains a 60-day view.
+- **History search:** Choose a date range, source and optional search text to find already-collected cascade and micro-monitor reports. Open a cascade result in its dossier or follow a micro-monitor result to its source. Searches do not alter the live gate or fetch missing historical reports; drill results appear only when drill mode is on.
+- **Sideways panels:** On smaller screens, use the visible arrows or swipe horizontally through the sensor panels.
 - **Ladder / Chrono / Day:** Group items by tier, scan the stream chronologically, or inspect a day’s slice. Collapse all groups to compact the stream.
 - **Dossier:** Select an item to see its source, gate decision, matched terms, feed text, and related signals.
 - **Source reader:** Attempts to retrieve and clean the original page into headings, text, tables, and links. It may omit content or fail due to publisher restrictions, paywalls, CORS, or relay availability. Follow the original when you need the authoritative version. Links in the extracted reader ask before opening a new tab.
 - **Brief & SITREP:** Collect selected items and export a Markdown situation report.
+- **Tactical pins:** Hold a control on touch screens or right-click on desktop for a contextual callout. Micro-monitor pins explain the current status, scope, and rule; most other controls and indicators have pins too. On a focused control, `Alt` + `I` opens its pin; `Esc` dismisses it. Normal tapping still activates the control.
 - **Field manual:** Open the in-app help for the tier terms, controls, and relay settings.
 
 ### Keyboard shortcuts
@@ -112,7 +123,7 @@ For health, food, cyber and world, a recent keyword match is a **watch**; three 
 | `J` / `K` | Next / previous dossier | `/` | Search |
 | `←` / `→` | Step days in day view | `B` | Brief tray |
 | `S` | SITREP | `?` | Field manual |
-| `Esc` | Close overlays / clear search | | |
+| `Esc` | Close overlays / clear search | `Alt` + `I` | Show pin for focused control |
 
 ## How the data gets here
 
@@ -126,7 +137,7 @@ https://your-relay.example/?url={url}
 
 The relay must return raw feed XML or a supported JSON feed response and allow browser access. Operate and secure your own relay if you need dependable service; do not expose an unrestricted proxy to the public. Publisher terms, access restrictions, and rate limits still apply.
 
-**Privacy and availability:** Archive, preferences, and capsule history are stored locally where browser storage is available. Requests to publishers, feed converters, relays, and optionally remote images expose normal network metadata to those services. The app is not a background notification service: automatic polling is optional and works while the tab is visible; a closed or suspended tab cannot reliably monitor. Sandboxed previews may block network or storage, producing comms errors even when a normal browser can connect.
+**Privacy and availability:** The selected ZIP and approximate coordinates, archive, preferences, and capsule history are stored locally where browser storage is available. A ZIP lookup sends the code to Zippopotam.us; weather requests send the coordinates to the weather service and potentially to a configured or public relay. Requests to publishers, feed converters, relays, and optionally remote images expose normal network metadata to those services. The app is not a background notification service: automatic polling is optional and works while the tab is visible; a closed or suspended tab cannot reliably monitor. Sandboxed previews may block network or storage, producing comms errors even when a normal browser can connect.
 
 ## Tune it for your mission
 
